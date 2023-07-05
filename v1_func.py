@@ -1,5 +1,6 @@
 import requests
 from bs4 import BeautifulSoup
+from bs4 import Comment
 from websearch import WebSearch as web
 import pandas as pd
 import time
@@ -7,6 +8,7 @@ import random
 from v1_mini_func import *
 
 AVERAGE_RUNS_PER_INNING = 0.444
+NUM_INNINGS = 9
 
 def get_lineup():
     url = 'https://www.mlb.com/angels/roster/starting-lineups'
@@ -41,61 +43,89 @@ def get_starting_pitching(year):
     url = 'https://www.mlb.com/angels/roster/starting-lineups'
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    data = soup.find_all('div', class_="starting-lineups__pitcher-overview")
-    starting_pitching = (data[0].text).split("\n")
-    starting_pitching = [item.strip(' ') for item in starting_pitching]
-    starting_pitching = [item for item in starting_pitching if item]
-    starters = [starting_pitching[0], starting_pitching[3]] # away starter, home starter
+    name_tags = soup.find_all('div', class_="starting-lineups__pitcher-name")
+
+    away_starter = name_tags[0].text
+    home_starter = name_tags[1].text
+    starters = [away_starter.strip('\n'), home_starter.strip('\n')]
     starters_run_per_inn = []
 
     for pitcher in starters:
-        print(pitcher + " bref stats, height, weight, position")
         url = web(pitcher + " bref stats, height, weight, position").pages[0]
-        page = requests.get(url)
-        soup = BeautifulSoup(page.text, 'lxml')
-        recent_starts_table = soup.find('table', id="last5")
-
-        # Get pitcher data for last five starts
-        headers = find_headers(recent_starts_table)
-        headers = headers[:-5]
-        headers = headers[1:]
-
-        data = pd.DataFrame(columns=headers)
-        for j in recent_starts_table.find_all('tr')[1:]:
-            row_data = j.find_all('td')
-            row = [i.text for i in row_data]
-            length = len(data)
-            data.loc[length] = row
+        response = requests.get(url)
+        soup = BeautifulSoup(response.text, 'html.parser')
+        if pitcher == "Shohei Ohtani":
+            recent_starts_html = soup.find_all('table', id="last5_p")
+        else:
+            recent_starts_html = soup.find_all('table', id='last5')
         
-        recent_innings = string_to_int_sum(data["IP"], float)
-        recent_runs_allowed = string_to_int_sum(data["R"], int)
+        # Get pitcher data for last five starts
+        recent_starts_table = pd.read_html(str(recent_starts_html))[0]
+
+        recent_innings = string_to_int_sum(recent_starts_table["IP"], float)
+        recent_runs_allowed = string_to_int_sum(recent_starts_table["R"], int)
         recent_avg_start_length = round(recent_innings / 5.0, 3)
         recent_runs_per_inning = round(recent_runs_allowed / recent_innings, 3)
 
-        # Get entire season peformance
-        season_table = soup.find('table', id="pitching_standard")
-        headers = find_headers(season_table)
-        headers = headers[1:35]
-
-        body = season_table.find('tr', id="pitching_standard." + year)
-        body = body.find_all('td')
-        stats = []
-        for j in body:
-            stats += [j.text]
-
-        season_data = dict(zip(headers, stats))
-        season_innings = float(season_data["IP"])
-        season_runs = int(season_data["R"])
-        num_games = int(season_data["G"])
+        season_starts_table = []
+        try:
+            season_starts_html = soup.find_all('table', id='pitching_standard')
+            season_starts_table = pd.read_html(str(season_starts_html))[0]
+        except:
+            comments = soup.find_all(string=lambda text: isinstance(text, Comment))
+            tables = []
+            for each in comments:
+                if 'table' in each:
+                    try:
+                        tables.append(pd.read_html(each)[0])
+                    except:
+                        continue
+            
+            some_tables = []
+            for tab in tables:
+                if 'W' in tab.columns:
+                        some_tables += [tab]
+            season_starts_table = some_tables[0]
+        
+        current_season_stats = season_starts_table.loc[season_starts_table['Year'] == year]
+        current_season_stats = current_season_stats.loc[~current_season_stats['Tm'].str.contains("min")]    
+        
+        season_innings = float(current_season_stats.iloc[0]["IP"])
+        season_runs = int(current_season_stats.iloc[0]["R"])
+        num_games = int(current_season_stats.iloc[0]["G"])
 
         avg_start_length = round(season_innings / num_games, 3)
         avg_runs_per_inning = round(season_runs / season_innings, 3)
 
         starters_run_per_inn += [starting_pitcher_calculation(recent_avg_start_length,
                 recent_runs_per_inning, avg_start_length, avg_runs_per_inning)]
-        
+    
     return starters_run_per_inn
 
+# Returns teams' bullpens' ERA in form [Away ERA, Home ERA]
+def get_bullpen(away, home, year):
+    url = web("mlb bullpen stats covers " + year).pages[0]
+    page = requests.get(url)
+    soup = BeautifulSoup(page.text, 'lxml')
+    html = soup.find('table', id="MLB_RegularSeason")
+    table = pd.read_html(str(html))[0]
+
+    # Get bullpen information
+    away_index, home_index = -1, -1
+    for i in range(len(table)):
+        curr_name = table.loc[i]['Team']
+        if curr_name in away:
+            away_index = i
+        elif curr_name in home:
+            home_index = i
+        
+        if away_index > 0 and home_index > 0:
+            break
+
+    away_era = table.iloc[away_index]['ERA']
+    home_era = table.iloc[home_index]['ERA']
+
+    return away_era, home_era
 
 # Given a player name and the player's team, extract batting information for current season
 # All arguments are strings
@@ -213,7 +243,7 @@ def inning(runs, bop, stats):
     return runs, bop
 
 # Simulates a game
-def game(away_stats, home_stats, away_runs, home_runs, away_bop, home_bop, starters):
+def game(away_stats, home_stats, away_runs, home_runs, away_bop, home_bop, starters, bullpen):
     num_half_innings = 18
     for half_inning in range(num_half_innings):
         if half_inning % 2 == 0: # i.e. away team is batting
@@ -224,14 +254,21 @@ def game(away_stats, home_stats, away_runs, home_runs, away_bop, home_bop, start
     # Factor impact of starting pitcher
     away_starting_pitcher_difference = (AVERAGE_RUNS_PER_INNING - starters[0][0]) * starters[0][1]
     home_starting_pitcher_difference = (AVERAGE_RUNS_PER_INNING - starters[1][0]) * starters[1][1]
-    away_runs += away_starting_pitcher_difference
-    home_runs += home_starting_pitcher_difference
+    away_runs -= home_starting_pitcher_difference
+    home_runs -= away_starting_pitcher_difference
+
+    # Factor impact of bullpen
+    away_bullpen_runs_per_inning = round(bullpen[0] / NUM_INNINGS, 3)
+    away_bullpen_innings = NUM_INNINGS - starters[0][1]
+    away_bullpen_difference = (AVERAGE_RUNS_PER_INNING - away_bullpen_runs_per_inning) * away_bullpen_innings
+    home_bullpen_runs_per_inning = round(bullpen[1] / NUM_INNINGS, 3)
+    home_bullpen_innings = NUM_INNINGS - starters[1][1]
+    home_bullpen_difference = (AVERAGE_RUNS_PER_INNING - home_bullpen_runs_per_inning) * home_bullpen_innings
+    away_runs -= home_bullpen_difference
+    home_runs -= away_bullpen_difference
 
     while away_runs == home_runs:
         away_runs, away_bop = inning(away_runs, away_bop, away_stats)
         home_runs, home_bop = inning(home_runs, home_bop, home_stats)
     
-    if away_runs > home_runs:
-        return "AWAY WIN"
-    else:
-        return "HOME WIN"
+    return away_runs, home_runs
