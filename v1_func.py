@@ -10,8 +10,8 @@ from v1_mini_func import *
 AVERAGE_RUNS_PER_INNING = 0.444
 NUM_INNINGS = 9
 
-def get_lineup():
-    url = 'https://www.mlb.com/angels/roster/starting-lineups'
+def get_lineup(team):
+    url = web(team + " starting lineups").pages[0]
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
     data = soup.find_all('div', class_="starting-lineups__teams starting-lineups__teams--xs starting-lineups__teams--md starting-lineups__teams--lg")
@@ -39,8 +39,8 @@ def get_lineup():
     
     return awayTeam, homeTeam
 
-def get_starting_pitching(year):
-    url = 'https://www.mlb.com/angels/roster/starting-lineups'
+def get_starting_pitching(team, year):
+    url = web(team + " starting lineups").pages[0]
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
     name_tags = soup.find_all('div', class_="starting-lineups__pitcher-name")
@@ -51,7 +51,18 @@ def get_starting_pitching(year):
     starters_run_per_inn = []
 
     for pitcher in starters:
-        url = web(pitcher + " bref stats, height, weight, position").pages[0]
+        print(pitcher + " bref stats, height, weight, position")
+        possible_url = web(pitcher + " bref stats, height, weight, position").pages
+        url = ''
+        index = 0
+        while not url:
+            #print(possible_url[index])
+            #print("baseball-reference" in possible_url[index])
+            if "baseball-reference" in possible_url[index]:
+                url = possible_url[index]
+            index += 1
+        #url = web(pitcher + " bref stats, height, weight, position").pages[0]
+        print(url)
         response = requests.get(url)
         soup = BeautifulSoup(response.text, 'html.parser')
         if pitcher == "Shohei Ohtani":
@@ -131,29 +142,21 @@ def get_bullpen(away, home, year):
 # All arguments are strings
 def extract_player_data_batting(player, team, year):
     # Find part of page that contains batting data
-    print(player + " " + team + " bref stats, height, weight, position")
-    url = web(player + " " + team + " bref stats, height, weight, position").pages[0]
+    print(player + " " + team + " bref stats, height, weight, position " + year)
+    possible_url = web(player + " " + team + " bref stats, height, weight, position").pages
+    url = ''
+    index = 0
+    while not url:
+        if "baseball-reference" in possible_url[index]:
+            url = possible_url[index]
+        index += 1
+    print(url)
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'lxml')
-    table1 = soup.find('table', id="batting_standard")
-
-    # Record all the column names (i.e. G, PA, AB)
-    headers = find_headers(table1)
-    headers = headers[1:30]
+    html = soup.find('table', id="batting_standard")
+    table = pd.read_html(str(html))[0]
     
-    # Get all data for current season
-    body = table1.find('tr', id="batting_standard." + year)
-    body = body.find_all('td')
-    items = []
-    for j in body:
-        items += [j.text]
-    data = pd.DataFrame(columns=headers, index=[year])
-    
-    # Combine column names and current season stats into one table
-    for i in range(len(items)):
-        data.iloc[0][i] = items[i]
-
-    return data
+    return table
 
 # Convert a lineup to stats
 def player_to_stats(team, year):

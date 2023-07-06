@@ -1,10 +1,3 @@
-def find_headers(table):
-    headers = []
-    for i in table.find_all('th'):
-        title = i.text
-        headers.append(title)
-    return headers
-
 # Used to sum values of a column where the types are strings
 def string_to_int_sum(row, type):
     sum = 0

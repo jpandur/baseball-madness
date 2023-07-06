@@ -1,6 +1,7 @@
 from v1_func import *
 
-away_team, home_team = get_lineup() # Get names on lineup
+team = input("Enter a team name: ")
+away_team, home_team = get_lineup(team) # Get names on lineup
 
 # Convert lineup names into corresponding season stats
 away_stats = player_to_stats(away_team, "2023")
@@ -9,7 +10,7 @@ home_stats = player_to_stats(home_team, "2023")
 away_runs, home_runs = 0, 0
 away_bop, home_bop = 0, 0
 
-starters = get_starting_pitching("2023")
+starters = get_starting_pitching(team, "2023")
 bullpen = get_bullpen(away_team[0], home_team[0], "2023")
 
 # Simulate 10000 different games to determine which side would win.
