@@ -29,37 +29,21 @@ def at_bat(batter, pitcher, basepaths, num_outs):
     pitcher_stats_url, pitcher_splits_url, pitcher_game_log_url = stat_links(pitcher_name, "p")
 
     # Get relevant tables for batter and pitcher if they exist.
-    response = requests.get(batter_splits_url)
-    if response.status_code == 200:
-        batter_splits_tables = get_splits_tables(batter_splits_url)
-        pause = random.randint(1, 5)
-        time.sleep(pause)
-    else:
+    batter_splits_tables = get_splits_tables(batter_splits_url)
+    time.sleep(random.randint(1, 5))
+    if batter_splits_tables == []:
         batter_splits_tables = [[[]] for _ in range(50)]
 
-    response = requests.get(pitcher_splits_url)
-    if response.status_code == 200:
-        pitcher_splits_tables = get_splits_tables(pitcher_splits_url)
-        pause = random.randint(1, 5)
-        time.sleep(pause)
-    else:
+    pitcher_splits_tables = get_splits_tables(pitcher_splits_url)
+    time.sleep(random.randint(1, 5))
+    if pitcher_splits_tables == []:
         pitcher_splits_tables = [[[]] for _ in range(50)]
 
-    response = requests.get(batter_game_log_url)
-    if response.status_code == 200:
-        batter_game_log_table = get_game_log_tables(batter_game_log_url, "batting")
-        pause = random.randint(1, 5)
-        time.sleep(pause)
-    else:
-        batter_game_log_table = []
+    batter_game_log_table = get_game_log_tables(batter_game_log_url, "batting")
+    time.sleep(random.randint(1, 5))
 
-    response = requests.get(pitcher_game_log_url)
-    if response.status_code == 200:
-        pitcher_game_log_table = get_game_log_tables(pitcher_game_log_url, "pitching")
-        pause = random.randint(1, 5)
-        time.sleep(pause)
-    else:
-        pitcher_game_log_table = []
+    pitcher_game_log_table = get_game_log_tables(pitcher_game_log_url, "pitching")
+    time.sleep(random.randint(1, 5))
 
     # Item 1 for at-bat: how does batter and pitcher do with given basepaths and outs?
     item1_safe_b, item1_out_b = situational_bases_and_outs(batter_splits_tables[13][0], basepaths, num_outs)
@@ -71,12 +55,18 @@ def at_bat(batter, pitcher, basepaths, num_outs):
     item2_safe_p, item2_out_p = situational_bases(pitcher_splits_tables[14][0], basepaths)
     b_item2, p_item2 = item_calculation(item2_safe_b, item2_out_b, item2_safe_p, item2_out_p)
 
-    # Item 3 for at-abt: how does batter and pitcher do with given outs only?
+    # Item 3 for at-bat: how does batter and pitcher do with given outs only?
     item3_safe_b, item3_out_b = situational_outs(batter_splits_tables[12][0], num_outs)
     item3_safe_p, item3_out_p = situational_outs(pitcher_splits_tables[13][0], num_outs)
     b_item3, p_item3 = item_calculation(item3_safe_b, item3_out_b, item3_safe_p, item3_out_p)
 
-    game_log_case(batter_game_log_table, 20)
+    # Item 4 for at-bat: how has batter/pitcher been doing in last 20/5 games?
+    item4_safe_b, item4_out_b = game_log_case(batter_game_log_table, 20, "b")
+    item4_safe_p, item4_out_p = game_log_case(pitcher_game_log_table, 5, "p")
+    b_item4, p_item4 = item_calculation(item4_safe_b, item4_out_b, item4_safe_p, item4_out_p)
+
+    print(b_item1, b_item2, b_item3, b_item4)
+    print(p_item1, p_item2, p_item3, p_item4)
 
     return
 
@@ -222,9 +212,9 @@ def situational_outs(table, num_outs):
     else:
         return -1, -1
 
-# Given a game log table and the last number of games played, return the
-# number of times safe and the number of times out.
-def game_log_case(table, num_games):
+# Given a game log table, the last number of games played, and classifier (b/p)
+# return the number of times safe and the number of times out.
+def game_log_case(table, num_games, classifier):
     if type(table) != pd.core.frame.DataFrame: # If table is empty
         return -1, -1
     table = table.drop(["Rk", "Gcar", "Gtm", "DFS(DK)", "DFS(FD)"], axis=1) # Drop unneeded columns
@@ -235,6 +225,18 @@ def game_log_case(table, num_games):
     considered_games = min(num_games, len(table.index)) # In case game log has less than NUM_GAMES
     start_index = len(table.index) - considered_games # Where we begin taking data
     recent_games_table = table[start_index:] # Get recent games
+    recent_games_table = recent_games_table.reset_index() # Set such that first row has index 0
+    times_safe = 0
+    plate_appearances = 0
+    for index in recent_games_table.index:
+        if classifier == "b":
+            plate_appearances += int(recent_games_table["PA"][index])
+        else:
+            plate_appearances += int(recent_games_table["BF"][index])
+        times_safe = times_safe + int(recent_games_table["H"][index]) + int(recent_games_table["BB"][index]) + int(recent_games_table["HBP"][index]) + int(recent_games_table["ROE"][index])
+    
+    return times_safe, plate_appearances - times_safe
+
 
 # Test Case
 at_bat("Fernando Tatis Jr. (R) RF", "Lance Lynn (R)", "---", "1")
