@@ -11,7 +11,8 @@ CURRENT_YEAR = str(datetime.now().year)
 # Determines the result of an at-bat based on the situation (i.e. BASEPATHS and NUM_OUTS).
 # Finds batter and pitcher data for this situation to make a prediction.
 # Return value is a string describing the outcome.
-def at_bat(batter, pitcher, basepaths, num_outs):
+# FRAME describes whether at-bat takes place during top or bottom of inning.
+def at_bat(batter, pitcher, basepaths, num_outs, frame):
     batter_name = batter.split("(")[0] # Gets part before the open parenthesis
     batter_handedness = batter.split("(")[1][0]
     batter_position = batter.split()[-1]
@@ -65,9 +66,24 @@ def at_bat(batter, pitcher, basepaths, num_outs):
     item4_safe_p, item4_out_p = game_log_case(pitcher_game_log_table, 5, "p")
     b_item4, p_item4 = item_calculation(item4_safe_b, item4_out_b, item4_safe_p, item4_out_p)
 
-    print(b_item1, b_item2, b_item3, b_item4)
-    print(p_item1, p_item2, p_item3, p_item4)
+    # Item 5 for at-bat: consider home/away stats for batter and pitcher.
+    if frame == "top":
+        item5_safe_b, item5_out_b = home_away_case(batter_splits_tables[2][0], "Away")
+        item5_safe_p, item5_out_p = home_away_case(pitcher_splits_tables[2][0], "Home")
+    else:
+        item5_safe_b, item5_out_b = home_away_case(batter_splits_tables[2][0], "Home")
+        item5_safe_p, item5_out_p = home_away_case(pitcher_splits_tables[2][0], "Away")
+    b_item5, p_item5 = item_calculation(item5_safe_b, item5_out_b, item5_safe_p, item5_out_p)
 
+    # Item 6 for at-bat: consider seasonal stats.
+    item6_safe_b, item6_out_b = season_case(batter_splits_tables[0][0])
+    item6_safe_p, item6_out_p = season_case(pitcher_splits_tables[0][0])
+    b_item6, p_item6 = item_calculation(item6_safe_b, item6_out_b, item6_safe_p, item6_out_p)
+    
+    batter_magic = magic_formula(b_item1, b_item2, b_item3, b_item4, b_item5, b_item6)
+    pitcher_magic = magic_formula(p_item1, p_item2, p_item3, p_item4, p_item5, p_item6)
+    print(batter_magic, pitcher_magic)
+    result(batter_magic, batter_splits_tables[0][0], pitcher_splits_tables[0][0])
     return
 
 def inning():
@@ -237,6 +253,58 @@ def game_log_case(table, num_games, classifier):
     
     return times_safe, plate_appearances - times_safe
 
+# Given a pertient table and whether or not player is home or away,
+# return the number of times safe and the number of times out.
+def home_away_case(table, location):
+    if type(table) != pd.core.frame.DataFrame:
+        return -1, -1
+    desired_row = table.loc[table["Split"] == location]
+    times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
+    times_out = desired_row["PA"].values[0] - times_safe
+
+    return int(times_safe), int(times_out)
+
+# Given a pertient table, return the number of times safe and out.
+def season_case(table):
+    if type(table) != pd.core.frame.DataFrame:
+        return -1, -1
+    desired_row = table.loc[table["Split"] == CURRENT_YEAR + " Totals"]
+    times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
+    times_out = desired_row["PA"].values[0] - times_safe
+
+    return int(times_safe), int(times_out)
+
+# With the factors calculated in function at-bat, produce a "magic" percentage
+# for player success rate.
+def magic_formula(factor1, factor2, factor3, factor4, factor5, factor6):
+    num = 0.25 * factor1 + 0.2 * factor2 + 0.2 * factor3 + 0.15 * factor4 + 0.1 * factor5 + 0.1 * factor6
+    return round(num, 3)
+
+# Given the magic numbers of batter, return the result of the at-bat.
+# Depending on who "wins", the batter's stat table or the pitcher's stat table
+# will be used to determine the exact outcome.
+def result(b_num, batter_table, pitcher_table):
+    result = 0
+    for _ in range(3):
+        result += random.uniform(0, 1)
+        print(result)
+    result = round(result / 3, 3)
+    print("Averaged Result: ", result)
+    if result <= b_num:
+        return safe_scenario(batter_table)
+    else:
+        return out_scenario(pitcher_table)
+
+def safe_scenario(table):
+    if type(table) != pd.core.frame.DataFrame:
+        return # case where no batter data availabl. use league avg info
+    desired_row = table.loc[table["Split"] == CURRENT_YEAR + " Totals"]
+    times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]    
+    result = random.randint(1, times_safe)
+
+def out_scenario(table):
+    if type(table) != pd.core.frame.DataFrame:
+        return # case where no batter data availabl. use league avg info
 
 # Test Case
-at_bat("Fernando Tatis Jr. (R) RF", "Lance Lynn (R)", "---", "1")
+at_bat("Fernando Tatis Jr. (R) RF", "Lance Lynn (R)", "---", "1", "top")
