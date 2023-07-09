@@ -3,6 +3,8 @@ from websearch import WebSearch as web
 import requests
 from bs4 import BeautifulSoup, Comment
 import pandas as pd
+import time
+import random
 
 CURRENT_YEAR = str(datetime.now().year)
 
@@ -26,14 +28,55 @@ def at_bat(batter, pitcher, basepaths, num_outs):
     batter_stats_url, batter_splits_url, batter_game_log_url = stat_links(batter_name, "b")
     pitcher_stats_url, pitcher_splits_url, pitcher_game_log_url = stat_links(pitcher_name, "p")
 
-    # Get relevant tables for batter and pitcher.
-    batter_splits_tables = get_splits_tables(batter_splits_url)
-    pitcher_splits_tables = get_splits_tables(pitcher_splits_url)
-    batter_game_log_table = get_game_log_tables(batter_game_log_url, "batting")
-    pitcher_game_log_table = get_game_log_tables(pitcher_game_log_url, "pitching")
+    # Get relevant tables for batter and pitcher if they exist.
+    response = requests.get(batter_splits_url)
+    if response.status_code == 200:
+        batter_splits_tables = get_splits_tables(batter_splits_url)
+        pause = random.randint(1, 5)
+        time.sleep(pause)
+    else:
+        batter_splits_tables = [[[]] for _ in range(50)]
 
+    response = requests.get(pitcher_splits_url)
+    if response.status_code == 200:
+        pitcher_splits_tables = get_splits_tables(pitcher_splits_url)
+        pause = random.randint(1, 5)
+        time.sleep(pause)
+    else:
+        pitcher_splits_tables = [[[]] for _ in range(50)]
 
-    situational_bases_and_outs(batter_splits_tables[13][0], basepaths, num_outs)
+    response = requests.get(batter_game_log_url)
+    if response.status_code == 200:
+        batter_game_log_table = get_game_log_tables(batter_game_log_url, "batting")
+        pause = random.randint(1, 5)
+        time.sleep(pause)
+    else:
+        batter_game_log_table = []
+
+    response = requests.get(pitcher_game_log_url)
+    if response.status_code == 200:
+        pitcher_game_log_table = get_game_log_tables(pitcher_game_log_url, "pitching")
+        pause = random.randint(1, 5)
+        time.sleep(pause)
+    else:
+        pitcher_game_log_table = []
+
+    # Item 1 for at-bat: how does batter and pitcher do with given basepaths and outs?
+    item1_safe_b, item1_out_b = situational_bases_and_outs(batter_splits_tables[13][0], basepaths, num_outs)
+    item1_safe_p, item1_out_p = situational_bases_and_outs(pitcher_splits_tables[14][0], basepaths, num_outs)
+    b_item1, p_item1 = item_calculation(item1_safe_b, item1_out_b, item1_safe_p, item1_out_p)
+    
+    # Item 2 for at-bat: how does batter and pitcher do with given basepaths only?
+    item2_safe_b, item2_out_b = situational_bases(batter_splits_tables[13][0], basepaths)
+    item2_safe_p, item2_out_p = situational_bases(pitcher_splits_tables[14][0], basepaths)
+    b_item2, p_item2 = item_calculation(item2_safe_b, item2_out_b, item2_safe_p, item2_out_p)
+
+    # Item 3 for at-abt: how does batter and pitcher do with given outs only?
+    item3_safe_b, item3_out_b = situational_outs(batter_splits_tables[12][0], num_outs)
+    item3_safe_p, item3_out_p = situational_outs(pitcher_splits_tables[13][0], num_outs)
+    b_item3, p_item3 = item_calculation(item3_safe_b, item3_out_b, item3_safe_p, item3_out_p)
+
+    game_log_case(batter_game_log_table, 20)
 
     return
 
@@ -114,10 +157,84 @@ def get_game_log_tables(player_url, identifier):
     table = pd.read_html(str(html))[0]
     return table
 
+# Given the number of times the batter reaches successfully and the pitcher records outs,
+# return decimal fractions indicating the success rate for the batter and pitcher.
+def item_calculation(batter_safe, batter_out, pitcher_safe, pitcher_out):
+    if batter_safe + batter_out < 0 and pitcher_safe + pitcher_out < 0:
+        return 0.5, 0.5
+    elif batter_safe + batter_out < 0 or pitcher_safe + pitcher_out < 0:
+        # In case there is no data for one player, use the number of situations that
+        # the other player has been in to do the calculations.
+        largest_sum = max(batter_safe + batter_out, pitcher_safe + pitcher_out)
+        half = largest_sum // 2
+        if batter_safe < 0:
+            batter_safe, batter_out = half, half
+        else:
+            pitcher_safe, pitcher_out = half, half
+
+    total = batter_safe + batter_out + pitcher_safe + pitcher_out
+    return round((batter_safe + pitcher_safe) / total, 3), round((batter_out + pitcher_out) / total, 3)    
+
 # Given a table with pertient information, the basepaths, and the number of outs,
 # return the number of times safe and number of times out.
-def situational_bases_and_outs (table, basepaths, num_outs):
-    return
+def situational_bases_and_outs(table, basepaths, num_outs):
+    # Check if table is a valid table.
+    if type(table) == pd.core.frame.DataFrame:
+        table = table.fillna(0) # Replace NaN with 0's
+        desired_row = table.loc[table["Split"] == num_outs + " out, " + basepaths]
+        times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
+        times_out = desired_row["PA"].values[0] - times_safe
+        
+        return int(times_safe), int(times_out)
+    else:
+        return -1, -1
+
+# Given a table with pertient information and the basepaths, return the number
+# of times safe and the number of times out.
+def situational_bases(table, basepaths):
+    # Check if table is a valid table.
+    if type(table) == pd.core.frame.DataFrame:
+        table = table.fillna(0) # Replace NaN with 0's
+        desired_row = table.loc[table["Split"] == basepaths]
+        times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
+        times_out = desired_row["PA"].values[0] - times_safe
+        
+        return int(times_safe), int(times_out)
+    else:
+        return -1, -1
+
+# Given a table with pertient information and the number of outs, return the number of
+# times safe and the number of times out.
+def situational_outs(table, num_outs):
+    # Check if table is a valid table.
+    if type(table) == pd.core.frame.DataFrame:
+        table = table.fillna(0) # Replace NaN with 0's
+        split_name = ''
+        for name in table["Split"].values: # Used to find the correct row.
+            if num_outs in name:
+                split_name = name
+                break
+        desired_row = table.loc[table["Split"] == split_name]
+        times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
+        times_out = desired_row["PA"].values[0] - times_safe
+
+        return int(times_safe), int(times_out)
+    else:
+        return -1, -1
+
+# Given a game log table and the last number of games played, return the
+# number of times safe and the number of times out.
+def game_log_case(table, num_games):
+    if type(table) != pd.core.frame.DataFrame: # If table is empty
+        return -1, -1
+    table = table.drop(["Rk", "Gcar", "Gtm", "DFS(DK)", "DFS(FD)"], axis=1) # Drop unneeded columns
+    table = table[table["Tm"] != "Tm"] # Get rid of rows that don't contain data.
+    table = table[:-1] # Delete last row, which contains season data.
+    table = table.fillna(0)
+
+    considered_games = min(num_games, len(table.index)) # In case game log has less than NUM_GAMES
+    start_index = len(table.index) - considered_games # Where we begin taking data
+    recent_games_table = table[start_index:] # Get recent games
 
 # Test Case
-at_bat("Fernando Tatis Jr. (R) RF", "Lance Lynn (R)", "___", 1)
+at_bat("Fernando Tatis Jr. (R) RF", "Lance Lynn (R)", "---", "1")
