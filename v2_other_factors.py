@@ -30,7 +30,7 @@ def code_to_name(code):
     url = find_url(possible_urls, "baseball-reference")
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.randint(1, 5))
+    time.sleep(random.uniform(1, 5))
 
     html = soup.find_all("table", class_="stats_table")
     table = pd.read_html(str(html))[0] # Gets all MLB teams that ever existed.

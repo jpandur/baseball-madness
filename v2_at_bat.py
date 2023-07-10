@@ -34,20 +34,20 @@ def at_bat(batter, pitcher, basepaths, num_outs, frame, location):
 
     # Get relevant tables for batter and pitcher if they exist.
     batter_splits_tables = get_splits_tables(batter_splits_url)
-    time.sleep(random.randint(1, 5))
+    time.sleep(random.uniform(1, 5))
     if batter_splits_tables == []:
         batter_splits_tables = [[[]] for _ in range(50)]
 
     pitcher_splits_tables = get_splits_tables(pitcher_splits_url)
-    time.sleep(random.randint(1, 5))
+    time.sleep(random.uniform(1, 5))
     if pitcher_splits_tables == []:
         pitcher_splits_tables = [[[]] for _ in range(50)]
 
     batter_game_log_table = get_game_log_tables(batter_game_log_url, "batting")
-    time.sleep(random.randint(1, 5))
+    time.sleep(random.uniform(1, 5))
 
     pitcher_game_log_table = get_game_log_tables(pitcher_game_log_url, "pitching")
-    time.sleep(random.randint(1, 5))
+    time.sleep(random.uniform(1, 5))
 
     # Item 1 for at-bat: how does batter and pitcher do with given basepaths and outs?
     item1_safe_b, item1_out_b = situational_bases_and_outs(batter_splits_tables[13][0], basepaths, num_outs)
@@ -90,49 +90,36 @@ def at_bat(batter, pitcher, basepaths, num_outs, frame, location):
     
     # "Magic numbers" calculated based on above factors.
     batter_magic = magic_formula(b_item1, b_item2, b_item3, b_item4, b_item5, b_item6, b_item7)
-    pitcher_magic = magic_formula(p_item1, p_item2, p_item3, p_item4, p_item5, p_item6, p_item7)
 
     # Adjusts batter's safety rate based on where the game is being played.
     column_name = batter_handedness + "-OBP"
     obp_factor_adjustment = location[column_name]
     batter_magic *= obp_factor_adjustment
 
-    for _ in range(10):
-        print( result(batter_magic, batter_splits_tables[0][0], pitcher_splits_tables[0][0],
-                  batter_handedness, location))
+    return result(batter_magic, batter_splits_tables[0][0], pitcher_splits_tables[0][0], 
+                  batter_handedness, location)
 
-def inning():
-    return
-
-# Runs a simulated game given two teams.
-# Returns the number of runs each team scores.
-def game(away_team, home_team):
-    away_starter = away_team[1]
-    home_starter = home_team[1]
-    away_batting = away_team[2:]
-    home_batting = home_team[2:]
-    away_bop, home_bop = 0, 0 # Batting order position for each team.
-
-    for _ in range(9):
-        inning()
-
-# Given a player name and a batter/pitcher classification, find relevant links to stats.
+# Given a player name and a batter/pitcher classification (b/p), find relevant links to stats.
 # Returns Fangraphs links to season stats, splits stats, game logs, and play logs.
 def stat_links(name, classification):
     possible_urls = web(name + " baseball reference stats height weight " + CURRENT_YEAR).pages
     stats_url = find_url(possible_urls, "baseball-reference.com")
+    time.sleep(random.uniform(1, 5))
 
     parts_of_stats_url = stats_url.split("/")
     index = 0
     general_url = ''
 
     # Finds the part of the URL that is the same regardless of what page is visited.
-    while True:
-        if "shtml" in parts_of_stats_url[index]:
-            general_url = general_url[:-2] # Remove last slash and letter
-            break
-        general_url = general_url + parts_of_stats_url[index] + "/"
-        index += 1
+    try:
+        while True:
+            if "shtml" in parts_of_stats_url[index]:
+                general_url = general_url[:-2] # Remove last slash and letter
+                break
+            general_url = general_url + parts_of_stats_url[index] + "/"
+            index += 1
+    except:
+        return '', '', ''
 
     # Variable PLAYER_IDENTIFIER keeps part of the URL that contains player's "name".
     player_identifier = parts_of_stats_url[index].split(".")[0]
@@ -397,4 +384,4 @@ def out_scenario(table, location, handedness):
         return "Out"
 
 # Test Case
-print(at_bat("Fernando Tatis Jr. (R) RF", "Lance Lynn (R)", "---", "1", "top", park_factor("SDP")))
+#print(at_bat("Fernando Tatis Jr. (R) RF", "Shohei Ohtani (R)", "---", "1", "bottom", park_factor("SDP")))
