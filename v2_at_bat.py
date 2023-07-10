@@ -311,7 +311,7 @@ def result(b_num, batter_table, pitcher_table, batter_handedness, location):
 
 # Given batter statistics and where the game is played, determine the exact outcome.
 def safe_scenario(table, location, handedness):
-    if type(table) == pd.core.frame.DataFrame: # if no player data available, use league averages
+    if type(table) != pd.core.frame.DataFrame: # if no player data available, use league averages
         url = "https://www.baseball-reference.com/leagues/majors/bat.shtml"
         data = pd.read_html(url)[0]
         this_year = data.iloc[0]
@@ -370,7 +370,7 @@ def safe_scenario(table, location, handedness):
 
 # Given pitcher statistics and where the game is played, determine the exact outcome.
 def out_scenario(table, location, handedness):
-    if type(table) == pd.core.frame.DataFrame:
+    if type(table) != pd.core.frame.DataFrame:
         url = "https://www.baseball-reference.com/leagues/majors/bat.shtml"
         data = pd.read_html(url)[0]
         this_year = data.iloc[0]
