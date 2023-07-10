@@ -5,7 +5,7 @@ from websearch import WebSearch as web
 import pandas as pd
 import time
 import random
-from v2_game import *
+from v2_at_bat import *
 
 
 # Finds the lineups for the game based on the team name entered.
