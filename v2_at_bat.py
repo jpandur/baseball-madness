@@ -1,14 +1,4 @@
-from datetime import datetime
-from websearch import WebSearch as web
-import requests
-from bs4 import BeautifulSoup, Comment
-import pandas as pd
-import time
-import random
-
 from v2_other_factors import *
-
-CURRENT_YEAR = str(datetime.now().year)
 
 # Determines the result of an at-bat based on the situation (i.e. BASEPATHS and NUM_OUTS).
 # Finds batter and pitcher data for this situation to make a prediction.
@@ -98,61 +88,6 @@ def at_bat(batter, pitcher, basepaths, num_outs, frame, location):
 
     return result(batter_magic, batter_splits_tables[0][0], pitcher_splits_tables[0][0], 
                   batter_handedness, location)
-
-# Given a player name and a batter/pitcher classification (b/p), find relevant links to stats.
-# Returns Fangraphs links to season stats, splits stats, game logs, and play logs.
-def stat_links(name, classification):
-    possible_urls = web(name + " baseball reference stats height weight " + CURRENT_YEAR).pages
-    stats_url = find_url(possible_urls, "baseball-reference.com")
-    time.sleep(random.uniform(1, 5))
-
-    parts_of_stats_url = stats_url.split("/")
-    index = 0
-    general_url = ''
-
-    # Finds the part of the URL that is the same regardless of what page is visited.
-    try:
-        while True:
-            if "shtml" in parts_of_stats_url[index]:
-                general_url = general_url[:-2] # Remove last slash and letter
-                break
-            general_url = general_url + parts_of_stats_url[index] + "/"
-            index += 1
-    except:
-        return '', '', ''
-
-    # Variable PLAYER_IDENTIFIER keeps part of the URL that contains player's "name".
-    player_identifier = parts_of_stats_url[index].split(".")[0]
-
-    # Concatenate strings to create splits URL, game log URL, and play log URL.
-    splits_url = general_url + "split.fcgi?id=" + player_identifier + "&year=" + CURRENT_YEAR + "&t=" + classification
-    game_log_url = general_url + "gl.fcgi?id=" + player_identifier + "&t=" + classification + "&year=" + CURRENT_YEAR
-
-    return stats_url, splits_url, game_log_url
-
-# Given a url, return all tables on that page.
-def get_splits_tables(player_url):
-    response = requests.get(player_url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-
-    comments = soup.find_all(string=lambda text: isinstance(text, Comment))
-    tables = []
-    for each in comments:
-        if 'table' in each:
-            try:
-                tables.append((pd.read_html(str(each))))
-            except:
-                continue
-    
-    return tables
-
-# Given a url and identifier (batting or pitching), return game log table.
-def get_game_log_tables(player_url, identifier):
-    response = requests.get(player_url)
-    soup = BeautifulSoup(response.text, 'html.parser')
-    html = soup.find_all("table", id=identifier + "_gamelogs")
-    table = pd.read_html(str(html))[0]
-    return table
 
 # Given the number of times the batter reaches successfully and the pitcher records outs,
 # return decimal fractions indicating the success rate for the batter and pitcher.
@@ -366,7 +301,6 @@ def out_scenario(table, location, handedness):
         strikeout_rate = this_year["SO"] / 27
         result = random.uniform(0, 1)
         if result <= strikeout_rate:
-            print("SO PER GAME: ", this_year["SO"])
             return "Strikeout"
         return "Out"
 
@@ -382,6 +316,3 @@ def out_scenario(table, location, handedness):
         return "Strikeout"
     else:
         return "Out"
-
-# Test Case
-#print(at_bat("Fernando Tatis Jr. (R) RF", "Shohei Ohtani (R)", "---", "1", "bottom", park_factor("SDP")))
