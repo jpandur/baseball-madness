@@ -3,13 +3,15 @@ from v2_other_factors import *
 # Determines the result of an at-bat based on the situation (i.e. BASEPATHS and NUM_OUTS).
 # Finds batter and pitcher data for this situation to make a prediction.
 # Return value is a string describing the outcome.
+# BATTER_DATA holds all tables for batter
+# PITCHER_DATA holds all data for pitcher
 # FRAME describes whether at-bat takes place during top or bottom of inning.
 # LOCATION describes where the game is being played.
-def at_bat(batter, pitcher, basepaths, num_outs, frame, location):
-    batter_name = batter.split("(")[0] # Gets part before the open parenthesis
+def at_bat(batter, batter_data, pitcher, pitcher_data, basepaths, num_outs, frame, location):
+    #batter_name = batter.split("(")[0] # Gets part before the open parenthesis
     batter_handedness = batter.split("(")[1][0]
-    batter_position = batter.split()[-1]
-    pitcher_name = pitcher.split("(")[0]
+    #batter_position = batter.split()[-1]
+    #pitcher_name = pitcher.split("(")[0]
     pitcher_handedness = pitcher.split("(")[1][0]
 
     if batter_handedness == "S":
@@ -18,26 +20,11 @@ def at_bat(batter, pitcher, basepaths, num_outs, frame, location):
         else:
             batter_handedness = "R"
 
-    # Get relevant links for batter and pitcher.
-    batter_stats_url, batter_splits_url, batter_game_log_url = stat_links(batter_name, "b")
-    pitcher_stats_url, pitcher_splits_url, pitcher_game_log_url = stat_links(pitcher_name, "p")
-
-    # Get relevant tables for batter and pitcher if they exist.
-    batter_splits_tables = get_splits_tables(batter_splits_url)
-    time.sleep(random.uniform(1, 5))
-    if batter_splits_tables == []:
-        batter_splits_tables = [[[]] for _ in range(50)]
-
-    pitcher_splits_tables = get_splits_tables(pitcher_splits_url)
-    time.sleep(random.uniform(1, 5))
-    if pitcher_splits_tables == []:
-        pitcher_splits_tables = [[[]] for _ in range(50)]
-
-    batter_game_log_table = get_game_log_tables(batter_game_log_url, "batting")
-    time.sleep(random.uniform(1, 5))
-
-    pitcher_game_log_table = get_game_log_tables(pitcher_game_log_url, "pitching")
-    time.sleep(random.uniform(1, 5))
+    # Get relevant data tables for batter and pitcher.
+    batter_splits_tables = batter_data[batter][0]
+    batter_game_log_table = batter_data[batter][1]
+    pitcher_splits_tables = pitcher_data[pitcher][0]
+    pitcher_game_log_table = pitcher_data[pitcher][1]
 
     # Item 1 for at-bat: how does batter and pitcher do with given basepaths and outs?
     item1_safe_b, item1_out_b = situational_bases_and_outs(batter_splits_tables[13][0], basepaths, num_outs)
@@ -161,6 +148,7 @@ def game_log_case(table, num_games, classifier):
         return -1, -1
     table = table.drop(["Rk", "Gcar", "Gtm", "DFS(DK)", "DFS(FD)"], axis=1) # Drop unneeded columns
     table = table[table["Tm"] != "Tm"] # Get rid of rows that don't contain data.
+    table = table[table["Tm"].notna()]
     table = table[:-1] # Delete last row, which contains season data.
     table = table.fillna(0)
 
@@ -292,7 +280,7 @@ def safe_scenario(table, location, handedness):
 
 # Given pitcher statistics and where the game is played, determine the exact outcome.
 def out_scenario(table, location, handedness):
-    if type(table) != pd.core.frame.DataFrame:
+    if type(table) != pd.core.frame.DataFrame: # if data unavailable, use league data
         url = "https://www.baseball-reference.com/leagues/majors/bat.shtml"
         data = pd.read_html(url)[0]
         this_year = data.iloc[0]

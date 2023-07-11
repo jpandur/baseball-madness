@@ -3,7 +3,7 @@ from v2_other_factors import *
 # Given list of available bullpen pitchers and current situation, return the name
 # of the relief pitcher best suited for the situation.
 # NEXT_BATTERS_HANDEDNESS describes the handedness of next three batters in list.
-def replace_pitcher(bullpen, basepaths, num_outs, next_batters_handedness):
+def replace_pitcher(bullpen, basepaths, num_outs, next_batters_handedness, pitcher_dict):
     rankings = [] # To store "scores" for each pitcher based on scenario
     handedness = 0 # Determines majority handedness of next three batters.
     for elem in next_batters_handedness:
@@ -18,12 +18,11 @@ def replace_pitcher(bullpen, basepaths, num_outs, next_batters_handedness):
     
     # Calculate effectiveness of each pitcher and update rankings list.
     for pitcher in bullpen:
-        splits_url = stat_links(pitcher, "p")[1]
-        if splits_url == '':
+        splits_tables = pitcher_dict[pitcher][0]
+        if type(splits_tables) != pd.core.frame.DataFrame:
             rankings += [(pitcher, .09)]
         else:
             # Get relevant tables for handedness, number of outs, and bases occupied.
-            splits_tables = get_splits_tables(splits_url)
             handedness_table = splits_tables[1][0]
             num_outs_table = splits_tables[12][0]
             bases_and_outs_table = splits_tables[13][0]
@@ -45,13 +44,13 @@ def replace_pitcher(bullpen, basepaths, num_outs, next_batters_handedness):
 
 # Determines, on average, how many innings pitcher throws and how many walks
 # and hits they give up. CLASSIFIER indicates whether pitcher is starter (SP) or reliever (RP).
-def max_innings_and_walks_plus_hits_and_runs(pitcher, classifier):
+def max_innings_and_walks_plus_hits_and_runs(pitcher, classifier, pitcher_dict):
     innings = 0
     walks_and_hits = 0
-    stats_url, splits_url, game_log_url = stat_links(pitcher, "p")
-    if splits_url != '' and game_log_url != '':
-        splits_data = get_splits_tables(splits_url)[0][1]
-        game_log_data = get_game_log_tables(game_log_url, "pitching")
+    splits_tables = pitcher_dict[pitcher][0]
+    game_log_data = pitcher_dict[pitcher][1]
+    if type(splits_tables) == pd.core.frame.DataFrame and type(game_log_data) == pd.core.frame.DataFrame:
+        splits_data = splits_tables[0][1]
         
         # Get season averages for innings, walks + hits, and runs.
         season_data = splits_data.loc[splits_data["Split"] == CURRENT_YEAR + " Totals"]
@@ -117,16 +116,17 @@ def max_innings_and_walks_plus_hits_and_runs(pitcher, classifier):
 # Classifies each pitcher as a high-leverage or low-leverage reliever.If the pitcher
 # does not have any associated stats for this season (i.e. making season debut or
 # pro debut), then they are automatically placed in the low_leverage list.
-def leverage_determiner(bullpen):
+def leverage_determiner(bullpen, pitcher_dict):
     high_leverage = [] # for "good" pitchers
     low_leverage = [] # for "bad" pitchers
     rankings_list = [] # contains "score" for each pitcher based on ERA and IP.
     for pitcher in bullpen:
-        stats_url, splits_url, game_log_url = stat_links(pitcher, "p")
-        if splits_url == '' or game_log_url == '':
+        splits_tables = pitcher_dict[pitcher][0]
+        game_log_table = pitcher_dict[pitcher][1]
+        if type(splits_tables) != pd.core.frame.DataFrame or type(game_log_table) != pd.core.frame.DataFrame:
             low_leverage += [pitcher]
         else:
-            table = get_splits_tables(splits_url)[0][1]
+            table = splits_tables[0][1]
             desired_row = table.loc[table["Split"] == CURRENT_YEAR + " Totals"]
 
             str_innings = str(desired_row["IP"][0]).split(".")

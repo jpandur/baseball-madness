@@ -15,6 +15,7 @@ def park_factor(team_code):
     factor_table = pd.read_csv("~/Documents/mlb_project/v2_park_factors.csv")
     for i in factor_table.index:
         if factor_table.iloc[i]["Team"] in name:
+            print("Game location found!")
             return factor_table.iloc[i]
 
 # Helper function to find the proper url based on the KEY_PHRASE
@@ -28,11 +29,11 @@ def find_url(possiblites, key_phrase):
     return url
 
 # Given a player name and a batter/pitcher classification (b/p), find relevant links to stats.
-# Returns Fangraphs links to season stats, splits stats, game logs, and play logs.
+# Returns Bref links to season stats, splits stats, game logs, and play logs.
 def stat_links(name, classification):
     possible_urls = web(name + " baseball reference stats height weight " + CURRENT_YEAR).pages
     stats_url = find_url(possible_urls, "baseball-reference.com")
-    time.sleep(random.uniform(1, 5))
+    time.sleep(random.uniform(2, 3))
 
     parts_of_stats_url = stats_url.split("/")
     index = 0
@@ -62,6 +63,7 @@ def stat_links(name, classification):
 def get_splits_tables(player_url):
     response = requests.get(player_url)
     soup = BeautifulSoup(response.text, 'html.parser')
+    time.sleep(random.uniform(2, 3))
 
     comments = soup.find_all(string=lambda text: isinstance(text, Comment))
     tables = []
@@ -80,6 +82,7 @@ def get_game_log_tables(player_url, identifier):
     soup = BeautifulSoup(response.text, 'html.parser')
     html = soup.find_all("table", id=identifier + "_gamelogs")
     table = pd.read_html(str(html))[0]
+    time.sleep(random.uniform(2, 3))
     return table
 
 # Given a team code, find the full name of the team.
@@ -88,7 +91,7 @@ def code_to_name(code):
     url = find_url(possible_urls, "baseball-reference")
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(1, 5))
+    time.sleep(random.uniform(2, 3))
 
     html = soup.find_all("table", class_="stats_table")
     table = pd.read_html(str(html))[0] # Gets all MLB teams that ever existed.
@@ -99,6 +102,6 @@ def code_to_name(code):
 
     team = current_teams.loc[current_teams[1] == code]
     team = team.reset_index(drop=True)
-    name = team.iloc[2][0]
+    name = team.iloc[0][2]
     
     return name
