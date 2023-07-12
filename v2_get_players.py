@@ -12,7 +12,7 @@ def get_lineups(team):
     url = find_url(possible_urls, "mlb.com")
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(2, 3))
+    time.sleep(random.uniform(1, 2))
 
     all_away_lineups = soup.find_all("ol", class_="starting-lineups__team--away")
     all_home_lineups = soup.find_all("ol", class_="starting-lineups__team--home")
@@ -52,10 +52,6 @@ def get_lineups(team):
     away_list.insert(1, away_pitcher_name + " (" + away_pitcher_handedness + ")")
     home_list.insert(1, home_pitcher_name + " (" + home_pitcher_handedness + ")")
 
-    print("Lineups retrieved!")
-    print(away_list)
-    print("\n")
-    print(home_list)
     return away_list, home_list, away_batting_handedness, home_batting_handedness
 
 # Given a team abbreviation, return a list of bullpen pitchers for that team,
@@ -65,25 +61,27 @@ def get_bullpen(team_abbreviation):
     url = find_url(possible_url, "mlb.com")
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(2, 3))
+    time.sleep(random.uniform(1, 2))
     html = soup.find_all("table", class_="roster__table")
 
     bullpen_table = pd.read_html(str(html))[1] # get bullpen roster from list of players
-    bullpen_table = bullpen_table.drop(["Bullpen", "B/T", "Ht", "Wt", "DOB"], axis=1)
+    bullpen_table = bullpen_table.drop(["Bullpen", "Ht", "Wt", "DOB"], axis=1)
     bullpen_table = bullpen_table.loc[~bullpen_table["Bullpen.1"].str.contains("IL-")] # Exclude IL
+    bullpen_table = bullpen_table.reset_index(drop=True)
     relief_pitchers = []
     closer = ''
     is_closer = False
-    for item in bullpen_table["Bullpen.1"]: # Loop through each element to get name only.
-        if "(CL)" in item:
+
+    for index in bullpen_table.index:
+        if "(CL)" in bullpen_table.iloc[index]["Bullpen.1"]:
             is_closer = True
-        split_list = item.split()
+        split_list = bullpen_table.iloc[index]["Bullpen.1"].split()
         name = ''
         for item in split_list:
             if not item.isnumeric():
                 name = name + item + " "
             else:
-                name = name[:-1] # Delete the extra space at the end.
+                name = name + "(" + bullpen_table.iloc[index]["B/T"][-1] + ")"
                 if is_closer:
                     closer = name
                     is_closer = False
@@ -94,24 +92,18 @@ def get_bullpen(team_abbreviation):
 
 # Given a list of bullpen pitchers, determine whether or not they can pitch today's
 # game based on how many games they pitched in recent days.
-def go_no_go_bullpen(bullpen):
+def go_no_go_bullpen(bullpen, pitcher_dict): # FIX THIS BY GETTING DICT
     go = []
     no_go = []
     today = datetime.today().strftime('%Y-%m-%d')
     today = datetime.strptime(today, "%Y-%m-%d")
 
     for player in bullpen:
-        possible_urls = web(player + " bref stats height weight position").pages
-        url = find_url(possible_urls, "baseball-reference")
-        response = requests.get(url)
-        soup = BeautifulSoup(response.text, 'html.parser')
-        time.sleep(random.uniform(2, 3))
-        html = soup.find_all("table", id="last5")
-
-        if html == []:
+        recent_games = pitcher_dict[player][2]
+        if type(recent_games) != pd.core.frame.DataFrame:
             go += [player]
-        else: # Check to see how many days have passed since each of last three outings.
-            recent_games = pd.read_html(str(html))[0]
+        # Check to see how many days have passed since each of last three outings.
+        else:
             date1 = datetime.strptime(recent_games.iloc[0]["Date"], "%Y-%m-%d")
             date2 = datetime.strptime(recent_games.iloc[1]["Date"], "%Y-%m-%d")
             date3 = datetime.strptime(recent_games.iloc[2]["Date"], "%Y-%m-%d")
@@ -132,11 +124,10 @@ def go_no_go_bullpen(bullpen):
 # Gets relevant tables for each player in batting lineup. Returns a dictionary
 # where the key is the player name and the values are the tables in order of 
 # [SPLITS, GAME LOG]. If no tables are found, value will be [[], []].
-def get_batter_data(lineup):
+def get_batter_data(lineup, team_code):
     player_dictionary = {}
-    for batter_entry in lineup:
-        batter = batter_entry.split("(")[0] # Gets part before the open parenthesis
-        stats_url, splits_url, game_log_url = stat_links(batter, "b")
+    for batter in lineup:
+        stats_url, splits_url, game_log_url = stat_links(batter, "b", team_code)
         if splits_url == '' and game_log_url == '': # if no data on batter, give empty list
             player_dictionary[batter] = [[], []]
         else:
@@ -148,16 +139,19 @@ def get_batter_data(lineup):
 
 # Get relevant tables for each pitcher. Returns a dictionary where key is pitcher
 # name and values are the tables. If no tables are found, value will be [[], []].
-def get_pitcher_data(pitchers):
+# Index 0: splits tables  Index 1: game log table  Index 2: last 5 games table  Index 3: handedness
+def get_pitcher_data(pitchers, team_code):
     player_dictionary = {}
     for pitcher_entry in pitchers:
-        pitcher = pitcher_entry.split("(")[0] # Gets part before the open parenthesis
-        stats_url, splits_url, game_log_url = stat_links(pitcher, "p")
-        if splits_url == '' and game_log_url == '': # if no data on batter, give empty list
-            player_dictionary[pitcher] = [[], []]
+        pitcher = pitcher_entry.split("(")[0][:-1] # Gets part before the open parenthesis
+        handedness = pitcher_entry.split("(")[1][0]
+        stats_url, splits_url, game_log_url = stat_links(pitcher, "p", team_code)
+        if splits_url == '' or game_log_url == '': # if no data on pitcher, give empty lists plus handedness
+            player_dictionary[pitcher_entry] = [[], [], [], handedness]
         else:
             splits_tables = get_splits_tables(splits_url)
             game_log_table = get_game_log_tables(game_log_url, "pitching")
-            player_dictionary[pitcher] = [splits_tables, game_log_table]
-        print(pitcher + " added to pitcher dictionary.")
+            last_5_table = get_last5_table(stats_url)
+            player_dictionary[pitcher_entry] = [splits_tables, game_log_table, last_5_table, handedness]
+        print(pitcher_entry + " added to pitcher dictionary.")
     return player_dictionary

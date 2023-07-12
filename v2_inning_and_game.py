@@ -18,21 +18,18 @@ from v2_choose_reliever import *
 # Returns the number of runs scored and the new batting order position.
 def half_inning(batters, batter_handedness, batters_dict, bop, pitcher, good_bullpen, bad_bullpen, pitchers_dict,
                 score, top_or_bottom, location, walks_hits_ip_dict):
-    num_outs = 0
+    num_outs, added_runs, index = 0, 0, 0
     basepaths = "---"
-    if top_or_bottom == "top": # index used to update score list accordingly
-        index = 0
-    else:
+    if top_or_bottom == "bottom": # index used to update score list accordingly
         index = 1
     # Account for difference in score here when changing pitchers.
     while num_outs < 3:
-        at_bat_result = at_bat(batters[bop], batters_dict, pitcher, pitchers_dict, num_outs, top_or_bottom, location)
+        at_bat_result = at_bat(batters[bop], batter_handedness[bop], batters_dict, pitcher, pitchers_dict, basepaths, str(num_outs), top_or_bottom, location)
         print(batters[bop] + " versus " + pitcher + ": " + at_bat_result)
         if at_bat_result == "Out" or at_bat_result == "Strikeout": # Covers out scenarios.
             num_outs += 1
             # Update number of innings remaining
-            new_innings = float(walks_hits_ip_dict[pitcher][0]) - 1.0 / 3.0
-            walks_hits_ip_dict[pitcher][0] = round(new_innings, 3)
+            walks_hits_ip_dict[pitcher][0] -= 1
             if at_bat_result != "Strikeout":
                 type_of_out = random.uniform(0, 1) # determine whether groundout or air out
                 if type_of_out <= 0.5 and num_outs < 3: # ground out scenario
@@ -40,45 +37,44 @@ def half_inning(batters, batter_handedness, batters_dict, bop, pitcher, good_bul
                         if random.uniform(0, 1) <= 0.05: # GIDP rate ~5%
                             basepaths = "-" + basepaths[1:]
                             num_outs += 1
-                            new_innings = float(walks_hits_ip_dict[pitcher][0]) - 1.0 / 3.0
-                            walks_hits_ip_dict[pitcher][0] = round(new_innings, 3)
+                            walks_hits_ip_dict[pitcher][0] -= 1
                 else: # air out scenario
                     if basepaths[2] == "3" and num_outs < 3: # sacrifice fly scenario
                         if random.uniform(0, 1) <= 0.02: # Sac fly rate ~2%
                             basepaths = basepaths[0:2] + "-"
-                            score[index] += 1
+                            added_runs += 1
                             walks_hits_ip_dict[pitcher][2] -= 1
         else: # Covers hit, walk, hbp, roe scenarios.
             walks_hits_ip_dict[pitcher][1] -= 1
             if at_bat_result == "Single" or at_bat_result == "ROE":
                 if basepaths[2] == "3":
-                    score[index] += 1
+                    added_runs += 1
                     walks_hits_ip_dict[pitcher][2] -= 1
                 basepaths = "1" + basepaths[0] + basepaths[1]
                 basepaths = string_basepaths_converter(basepaths)
                 if at_bat_result == "ROE":
-                    walks_hits_ip_dict[pitcher] += 1
+                    walks_hits_ip_dict[pitcher][1] += 1
             elif at_bat_result == "Double":
-                added_runs = 2 - basepaths[1:].count("-") # Parenthesis term counts people on 2nd and 3rd
-                score[index] += added_runs
-                walks_hits_ip_dict[pitcher][2] -= added_runs
+                more_runs = men_on_base_counter(basepaths, 1) # Parenthesis term counts people on 2nd and 3rd
+                added_runs += more_runs
+                walks_hits_ip_dict[pitcher][2] -= more_runs
                 basepaths = "-2" + basepaths[0]
                 basepaths = string_basepaths_converter(basepaths)
             elif at_bat_result == "Triple":
-                added_runs = 3 - basepaths.count("-") # Determines num people on base
-                score[index] += added_runs
-                walks_hits_ip_dict[pitcher][2] -= added_runs
+                more_runs = men_on_base_counter(basepaths, 0) # Determines num people on base
+                added_runs += more_runs
+                walks_hits_ip_dict[pitcher][2] -= more_runs
                 basepaths = "--3"
-            elif at_bat == "Home Run":
-                added_runs = 4 - basepaths.count("-")
-                score[index] += added_runs
-                walks_hits_ip_dict[pitcher][2] -= added_runs
+            elif at_bat_result == "Home Run":
+                more_runs = 1 + men_on_base_counter(basepaths, 0)
+                added_runs += more_runs
+                walks_hits_ip_dict[pitcher][2] -= more_runs
                 basepaths = "---"
             else: # case of HBP or Walk
                 if at_bat_result == "HBP":
                     walks_hits_ip_dict[pitcher][1] += 1
                 if basepaths == "123":
-                    score[index] += 1
+                    added_runs += 1
                     walks_hits_ip_dict[pitcher][2] -= 1
                 elif basepaths == "-2-" or basepaths == "--3":
                     basepaths = "1" + basepaths[1:]
@@ -88,10 +84,9 @@ def half_inning(batters, batter_handedness, batters_dict, bop, pitcher, good_bul
                     basepaths = "1" + basepaths[0] + basepaths[1]
                     basepaths = string_basepaths_converter(basepaths)
         
-        print(basepaths)
+        print("Basepaths", basepaths)
         print(walks_hits_ip_dict[pitcher])
-        print("Away Team Score: ", score[0])
-        print("Home Team Score: ", score[1])
+        print("Added Runs:", added_runs)
 
         if bop == 8: # adjust batting order position after at-bat
             bop = 0
@@ -99,7 +94,7 @@ def half_inning(batters, batter_handedness, batters_dict, bop, pitcher, good_bul
             bop += 1
 
         # In case pitcher needs to be replaced after having given up a certain number of runs, hits, and/or walks, or IP.
-        if walks_hits_ip_dict[pitcher][0] <= 0 or walks_hits_ip_dict[pitcher][1] <= 0 or walks_hits_ip_dict[pitcher][2] <= 0:
+        if walks_hits_ip_dict[pitcher][0] < 0 or (walks_hits_ip_dict[pitcher][1] < 0 and walks_hits_ip_dict[pitcher][2] < 0):
             temp_index = bop
             next_three_batters = [batter_handedness[temp_index], batter_handedness[(temp_index + 1) % 9], batter_handedness[(temp_index + 2) % 9]]
             if good_bullpen[0] != []: # if there are still good relievers
@@ -113,6 +108,10 @@ def half_inning(batters, batter_handedness, batters_dict, bop, pitcher, good_bul
                 bad_bullpen.remove(pitcher)
             print(pitcher + " is now the new pitcher!")
 
+    score[index] += added_runs
+    print("Runs Scored:", added_runs)
+    print("Away Team Score: ", score[0])
+    print("Home Team Score: ", score[1])
     # Return the score list, remaining members of the good and bad bullpen, the pitcher who finished the inning,
     # the walks_hits_ip_dict (also keeps track of runs), and the current batting order position for the batting team.
     return score, good_bullpen, bad_bullpen, pitcher, walks_hits_ip_dict, bop 
@@ -137,3 +136,12 @@ def string_basepaths_converter(basepaths):
         new_basepaths += "-"
 
     return new_basepaths
+
+# Counts number of people on base.
+def men_on_base_counter(basepaths, start_index):
+    num = 0
+    while start_index < 3:
+        if basepaths[start_index] == str(start_index + 1):
+            num += 1
+        start_index += 1
+    return num

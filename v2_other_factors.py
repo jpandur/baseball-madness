@@ -26,14 +26,18 @@ def find_url(possiblites, key_phrase):
         if key_phrase in possiblites[index]:
             url = possiblites[index]
         index += 1
+        if index == len(possiblites):
+            return url
     return url
 
 # Given a player name and a batter/pitcher classification (b/p), find relevant links to stats.
 # Returns Bref links to season stats, splits stats, game logs, and play logs.
-def stat_links(name, classification):
-    possible_urls = web(name + " baseball reference stats height weight " + CURRENT_YEAR).pages
-    stats_url = find_url(possible_urls, "baseball-reference.com")
-    time.sleep(random.uniform(2, 3))
+def stat_links(name, classification, team_code):
+    possible_urls = web(name + team_code + " baseball reference stats height weight " + CURRENT_YEAR).pages
+    stats_url = find_url(possible_urls, "baseball-reference.com/players")
+    time.sleep(random.uniform(1, 2))
+    if not stats_url:
+        return '', '', ''
 
     parts_of_stats_url = stats_url.split("/")
     index = 0
@@ -57,13 +61,26 @@ def stat_links(name, classification):
     splits_url = general_url + "split.fcgi?id=" + player_identifier + "&year=" + CURRENT_YEAR + "&t=" + classification
     game_log_url = general_url + "gl.fcgi?id=" + player_identifier + "&t=" + classification + "&year=" + CURRENT_YEAR
 
+    print(splits_url)
+    print(game_log_url)
     return stats_url, splits_url, game_log_url
+
+# Used for relievers, get the last five games played on their main stats page if possible.
+def get_last5_table(player_url):
+    response = requests.get(player_url)
+    soup = BeautifulSoup(response.text, 'html.parser')
+    time.sleep(random.uniform(1, 2))
+    html = soup.find_all("table", id="last5")
+    if html == []:
+        return []
+    else:
+        return pd.read_html(str(html))[0]
 
 # Given a url, return all tables on that page.
 def get_splits_tables(player_url):
     response = requests.get(player_url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(2, 3))
+    time.sleep(random.uniform(1, 2))
 
     comments = soup.find_all(string=lambda text: isinstance(text, Comment))
     tables = []
@@ -82,7 +99,8 @@ def get_game_log_tables(player_url, identifier):
     soup = BeautifulSoup(response.text, 'html.parser')
     html = soup.find_all("table", id=identifier + "_gamelogs")
     table = pd.read_html(str(html))[0]
-    time.sleep(random.uniform(2, 3))
+    table = table[table["Date"].notna()] # Drop rows with NaN in Date column
+    time.sleep(random.uniform(1, 2))
     return table
 
 # Given a team code, find the full name of the team.
@@ -91,7 +109,7 @@ def code_to_name(code):
     url = find_url(possible_urls, "baseball-reference")
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(2, 3))
+    time.sleep(random.uniform(1, 2))
 
     html = soup.find_all("table", class_="stats_table")
     table = pd.read_html(str(html))[0] # Gets all MLB teams that ever existed.
@@ -99,6 +117,13 @@ def code_to_name(code):
     current_teams = table.loc[table[4] == "Present"]
     current_teams = current_teams.drop([0, 3, 4], axis=1)
     current_teams = current_teams.reset_index(drop=True)
+    
+    #print(code)
+    #print(current_teams)
+    # TO-DO: Modify table based on the team codes that Mlb.com produces.
+    # Modify table here to make sure team abbreviations match with input.
+    current_teams.iloc[6][1] = "CWS"
+    current_teams.iloc[22][1] = "SD"
 
     team = current_teams.loc[current_teams[1] == code]
     team = team.reset_index(drop=True)

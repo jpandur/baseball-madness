@@ -7,12 +7,12 @@ from v2_other_factors import *
 # PITCHER_DATA holds all data for pitcher
 # FRAME describes whether at-bat takes place during top or bottom of inning.
 # LOCATION describes where the game is being played.
-def at_bat(batter, batter_data, pitcher, pitcher_data, basepaths, num_outs, frame, location):
+def at_bat(batter, batter_hands, batter_data, pitcher, pitcher_data, basepaths, num_outs, frame, location):
     #batter_name = batter.split("(")[0] # Gets part before the open parenthesis
-    batter_handedness = batter.split("(")[1][0]
+    batter_handedness = batter_hands
     #batter_position = batter.split()[-1]
     #pitcher_name = pitcher.split("(")[0]
-    pitcher_handedness = pitcher.split("(")[1][0]
+    pitcher_handedness = pitcher_data[pitcher][3]
 
     if batter_handedness == "S":
         if pitcher_handedness == "R":
@@ -92,7 +92,10 @@ def item_calculation(batter_safe, batter_out, pitcher_safe, pitcher_out):
             pitcher_safe, pitcher_out = half, half
 
     total = batter_safe + batter_out + pitcher_safe + pitcher_out
-    return round((batter_safe + pitcher_safe) / total, 3), round((batter_out + pitcher_out) / total, 3)    
+    if total > 0:
+        return round((batter_safe + pitcher_safe) / total, 3), round((batter_out + pitcher_out) / total, 3)    
+    else:
+        return 0,5, 0.5
 
 # Given a table with pertient information, the basepaths, and the number of outs,
 # return the number of times safe and number of times out.
@@ -101,6 +104,8 @@ def situational_bases_and_outs(table, basepaths, num_outs):
     if type(table) == pd.core.frame.DataFrame:
         table = table.fillna(0) # Replace NaN with 0's
         desired_row = table.loc[table["Split"] == num_outs + " out, " + basepaths]
+        if desired_row.empty:
+            return -1, -1
         times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
         times_out = desired_row["PA"].values[0] - times_safe
         
@@ -115,6 +120,8 @@ def situational_bases(table, basepaths):
     if type(table) == pd.core.frame.DataFrame:
         table = table.fillna(0) # Replace NaN with 0's
         desired_row = table.loc[table["Split"] == basepaths]
+        if desired_row.empty:
+            return -1, -1
         times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
         times_out = desired_row["PA"].values[0] - times_safe
         
@@ -134,6 +141,8 @@ def situational_outs(table, num_outs):
                 split_name = name
                 break
         desired_row = table.loc[table["Split"] == split_name]
+        if desired_row.empty:
+            return -1, -1
         times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
         times_out = desired_row["PA"].values[0] - times_safe
 
@@ -148,7 +157,7 @@ def game_log_case(table, num_games, classifier):
         return -1, -1
     table = table.drop(["Rk", "Gcar", "Gtm", "DFS(DK)", "DFS(FD)"], axis=1) # Drop unneeded columns
     table = table[table["Tm"] != "Tm"] # Get rid of rows that don't contain data.
-    table = table[table["Tm"].notna()]
+    table = table[table["Date"].notna()]
     table = table[:-1] # Delete last row, which contains season data.
     table = table.fillna(0)
 
@@ -173,6 +182,8 @@ def home_away_case(table, location):
     if type(table) != pd.core.frame.DataFrame:
         return -1, -1
     desired_row = table.loc[table["Split"] == location]
+    if desired_row.empty:
+        return -1, -1
     times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
     times_out = desired_row["PA"].values[0] - times_safe
 
