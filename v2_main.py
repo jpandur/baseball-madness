@@ -83,7 +83,7 @@ copy_away_bullpen_go = copy.deepcopy(away_bullpen_go)
 copy_away_bullpen_no_go = copy.deepcopy(away_bullpen_no_go)
 copy_home_bullpen_go = copy.deepcopy(home_bullpen_go)
 copy_home_bullpen_no_go = copy.deepcopy(home_bullpen_no_go)
-for _ in range(250):
+for _ in range(1000):
     score = [0, 0]
     away_bop, home_bop = 0, 0
     half_innings_played = 0
@@ -132,14 +132,13 @@ for _ in range(250):
     away_pitcher = away_list[1] # initially away starter
     home_pitcher = home_list[1] # initially home starter
 
-x = list(score_dictionary.values())
-d = dict()
-x.sort(reverse=True)
-x=x[:5]
-for i in x:
+instances = list(score_dictionary.values())
+instances.sort(reverse=True)
+instances = instances[:5]
+for i in instances:
     for j in score_dictionary.keys():
         if score_dictionary[j] == i:
-            print(str(j)+" : "+str(score_dictionary[j]))
+            print(str(j) + " : " + str(score_dictionary[j]))
 
 end2 = time.time() - start2    
 print(end1) # Time to collect data
@@ -151,5 +150,5 @@ for key in score_dictionary.keys():
     times = score_dictionary[key]
     away_total = away_total + times * away_score
     home_total = home_total + times * home_score
-print("Away Average:", away_total / 250)
-print("Home Average:", home_total / 250)
+print("Away Average:", away_total / 1000)
+print("Home Average:", home_total / 1000)
