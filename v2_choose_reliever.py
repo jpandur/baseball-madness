@@ -45,7 +45,6 @@ def replace_pitcher(bullpen, basepaths, num_outs, next_batters_handedness, pitch
 # Determines, on average, how many innings (num_outs) pitcher throws and how many walks
 # and hits they give up. CLASSIFIER indicates whether pitcher is starter (SP) or reliever (RP).
 def max_innings_and_walks_plus_hits_and_runs(pitcher, classifier, pitcher_dict):
-    print(pitcher)
     innings = 0
     walks_and_hits = 0
     splits_tables = pitcher_dict[pitcher][0]
@@ -113,6 +112,7 @@ def max_innings_and_walks_plus_hits_and_runs(pitcher, classifier, pitcher_dict):
             walks_and_hits = round(walks_and_hits) + 3
             runs = round(runs) + 2
     else:
+        print("No data found for " + pitcher)
         if classifier == "SP":
             return [15, 8, 3]
         else:

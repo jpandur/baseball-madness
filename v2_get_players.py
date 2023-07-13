@@ -12,7 +12,7 @@ def get_lineups(team):
     url = find_url(possible_urls, "mlb.com")
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(1, 2))
+    time.sleep(random.uniform(2, 3))
 
     all_away_lineups = soup.find_all("ol", class_="starting-lineups__team--away")
     all_home_lineups = soup.find_all("ol", class_="starting-lineups__team--home")
@@ -54,19 +54,20 @@ def get_lineups(team):
 
     return away_list, home_list, away_batting_handedness, home_batting_handedness
 
-# Given a team abbreviation, return a list of bullpen pitchers for that team,
+# Given a team name, return a list of bullpen pitchers for that team,
 # as well as the name of the closer.
-def get_bullpen(team_abbreviation):
-    possible_url = web("mlb " + team_abbreviation + " depth chart").pages
+def get_bullpen(team_name):
+    possible_url = web("mlb " + team_name + " depth chart").pages
     url = find_url(possible_url, "mlb.com")
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(1, 2))
+    time.sleep(random.uniform(2, 3))
     html = soup.find_all("table", class_="roster__table")
 
     bullpen_table = pd.read_html(str(html))[1] # get bullpen roster from list of players
     bullpen_table = bullpen_table.drop(["Bullpen", "Ht", "Wt", "DOB"], axis=1)
     bullpen_table = bullpen_table.loc[~bullpen_table["Bullpen.1"].str.contains("IL-")] # Exclude IL
+    bullpen_table = bullpen_table.loc[~bullpen_table["Bullpen.1"].str.contains("Minors")] # Exclude Minors
     bullpen_table = bullpen_table.reset_index(drop=True)
     relief_pitchers = []
     closer = ''
@@ -82,7 +83,7 @@ def get_bullpen(team_abbreviation):
                 name = name + item + " "
             else:
                 name = name + "(" + bullpen_table.iloc[index]["B/T"][-1] + ")"
-                if is_closer:
+                if is_closer or name == closer:
                     closer = name
                     is_closer = False
                 else:
@@ -99,13 +100,14 @@ def go_no_go_bullpen(bullpen, pitcher_dict): # FIX THIS BY GETTING DICT
     today = datetime.strptime(today, "%Y-%m-%d")
 
     for player in bullpen:
-        recent_games = pitcher_dict[player][2]
+        recent_games = pitcher_dict[player][2] # Get last 5 game played log.
         if type(recent_games) != pd.core.frame.DataFrame:
             go += [player]
         # Check to see how many days have passed since each of last three outings.
         else:
+            recent_games = recent_games[recent_games["Date"].notna()]
             date1 = datetime.strptime(recent_games.iloc[0]["Date"], "%Y-%m-%d")
-            date2 = datetime.strptime(recent_games.iloc[1]["Date"], "%Y-%m-%d")
+            date2 = datetime.strptime(recent_games.iloc[-1]["Date"], "%Y-%m-%d")
             date3 = datetime.strptime(recent_games.iloc[2]["Date"], "%Y-%m-%d")
             
             diff1 = abs((today - date1).days)
@@ -124,10 +126,10 @@ def go_no_go_bullpen(bullpen, pitcher_dict): # FIX THIS BY GETTING DICT
 # Gets relevant tables for each player in batting lineup. Returns a dictionary
 # where the key is the player name and the values are the tables in order of 
 # [SPLITS, GAME LOG]. If no tables are found, value will be [[], []].
-def get_batter_data(lineup, team_code):
+def get_batter_data(lineup, team_name):
     player_dictionary = {}
     for batter in lineup:
-        stats_url, splits_url, game_log_url = stat_links(batter, "b", team_code)
+        stats_url, splits_url, game_log_url = stat_links(batter, "b", team_name)
         if splits_url == '' and game_log_url == '': # if no data on batter, give empty list
             player_dictionary[batter] = [[], []]
         else:
@@ -140,12 +142,12 @@ def get_batter_data(lineup, team_code):
 # Get relevant tables for each pitcher. Returns a dictionary where key is pitcher
 # name and values are the tables. If no tables are found, value will be [[], []].
 # Index 0: splits tables  Index 1: game log table  Index 2: last 5 games table  Index 3: handedness
-def get_pitcher_data(pitchers, team_code):
+def get_pitcher_data(pitchers, team_name):
     player_dictionary = {}
     for pitcher_entry in pitchers:
         pitcher = pitcher_entry.split("(")[0][:-1] # Gets part before the open parenthesis
         handedness = pitcher_entry.split("(")[1][0]
-        stats_url, splits_url, game_log_url = stat_links(pitcher, "p", team_code)
+        stats_url, splits_url, game_log_url = stat_links(pitcher, "p", team_name)
         if splits_url == '' or game_log_url == '': # if no data on pitcher, give empty lists plus handedness
             player_dictionary[pitcher_entry] = [[], [], [], handedness]
         else:

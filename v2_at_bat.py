@@ -26,19 +26,29 @@ def at_bat(batter, batter_hands, batter_data, pitcher, pitcher_data, basepaths, 
     pitcher_splits_tables = pitcher_data[pitcher][0]
     pitcher_game_log_table = pitcher_data[pitcher][1]
 
+    if "King" in pitcher:
+        print(pitcher_splits_tables)
+
+    pitcher_bases_occupied_table = pitcher_splits_tables[13][0]
+    if pitcher_bases_occupied_table.loc[pitcher_bases_occupied_table["Split"] == "Men On"].empty or pitcher_bases_occupied_table.loc[pitcher_bases_occupied_table["Split"] == "---"].empty:
+        pitcher_bases_occupied_table = pitcher_splits_tables[14][0] 
+    pitcher_num_outs_table = pitcher_splits_tables[12][0]
+    if pitcher_num_outs_table.loc[pitcher_num_outs_table["Split"] == "0 outs"].empty:
+        pitcher_num_outs_table = pitcher_splits_tables[13][0]
+
     # Item 1 for at-bat: how does batter and pitcher do with given basepaths and outs?
     item1_safe_b, item1_out_b = situational_bases_and_outs(batter_splits_tables[13][0], basepaths, num_outs)
-    item1_safe_p, item1_out_p = situational_bases_and_outs(pitcher_splits_tables[14][0], basepaths, num_outs)
+    item1_safe_p, item1_out_p = situational_bases_and_outs(pitcher_bases_occupied_table, basepaths, num_outs)
     b_item1, p_item1 = item_calculation(item1_safe_b, item1_out_b, item1_safe_p, item1_out_p)
     
     # Item 2 for at-bat: how does batter and pitcher do with given basepaths only?
     item2_safe_b, item2_out_b = situational_bases(batter_splits_tables[13][0], basepaths)
-    item2_safe_p, item2_out_p = situational_bases(pitcher_splits_tables[14][0], basepaths)
+    item2_safe_p, item2_out_p = situational_bases(pitcher_bases_occupied_table, basepaths)
     b_item2, p_item2 = item_calculation(item2_safe_b, item2_out_b, item2_safe_p, item2_out_p)
 
     # Item 3 for at-bat: how does batter and pitcher do with given outs only?
     item3_safe_b, item3_out_b = situational_outs(batter_splits_tables[12][0], num_outs)
-    item3_safe_p, item3_out_p = situational_outs(pitcher_splits_tables[13][0], num_outs)
+    item3_safe_p, item3_out_p = situational_outs(pitcher_num_outs_table, num_outs)
     b_item3, p_item3 = item_calculation(item3_safe_b, item3_out_b, item3_safe_p, item3_out_p)
 
     # Item 4 for at-bat: how has batter/pitcher been doing in last 20/5 games?
@@ -95,7 +105,7 @@ def item_calculation(batter_safe, batter_out, pitcher_safe, pitcher_out):
     if total > 0:
         return round((batter_safe + pitcher_safe) / total, 3), round((batter_out + pitcher_out) / total, 3)    
     else:
-        return 0,5, 0.5
+        return 0.5, 0.5
 
 # Given a table with pertient information, the basepaths, and the number of outs,
 # return the number of times safe and number of times out.
