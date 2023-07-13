@@ -71,12 +71,16 @@ def get_starting_pitching(team, year):
             recent_starts_html = soup.find_all('table', id='last5')
         
         # Get pitcher data for last five starts
-        recent_starts_table = pd.read_html(str(recent_starts_html))[0]
+        try:
+            recent_starts_table = pd.read_html(str(recent_starts_html))[0]
 
-        recent_innings = string_to_int_sum(recent_starts_table["IP"], float)
-        recent_runs_allowed = string_to_int_sum(recent_starts_table["R"], int)
-        recent_avg_start_length = round(recent_innings / 5.0, 3)
-        recent_runs_per_inning = round(recent_runs_allowed / recent_innings, 3)
+            recent_innings = string_to_int_sum(recent_starts_table["IP"], float)
+            recent_runs_allowed = string_to_int_sum(recent_starts_table["R"], int)
+            recent_avg_start_length = round(recent_innings / 5.0, 3)
+            recent_runs_per_inning = round(recent_runs_allowed / recent_innings, 3)
+        except: # In case no pitcher data is found
+            recent_avg_start_length = 5
+            recent_runs_per_inning = 0.6
 
         season_starts_table = []
         try:
@@ -101,12 +105,16 @@ def get_starting_pitching(team, year):
         current_season_stats = season_starts_table.loc[season_starts_table['Year'] == year]
         current_season_stats = current_season_stats.loc[~current_season_stats['Tm'].str.contains("min")]    
         
-        season_innings = float(current_season_stats.iloc[0]["IP"])
-        season_runs = int(current_season_stats.iloc[0]["R"])
-        num_games = int(current_season_stats.iloc[0]["G"])
+        try:
+            season_innings = float(current_season_stats.iloc[0]["IP"])
+            season_runs = int(current_season_stats.iloc[0]["R"])
+            num_games = int(current_season_stats.iloc[0]["G"])
 
-        avg_start_length = round(season_innings / num_games, 3)
-        avg_runs_per_inning = round(season_runs / season_innings, 3)
+            avg_start_length = round(season_innings / num_games, 3)
+            avg_runs_per_inning = round(season_runs / season_innings, 3)
+        except: # In case no pitcher data is found
+            avg_start_length = 5
+            avg_runs_per_inning = 0.6
 
         starters_run_per_inn += [starting_pitcher_calculation(recent_avg_start_length,
                 recent_runs_per_inning, avg_start_length, avg_runs_per_inning)]
@@ -154,9 +162,14 @@ def extract_player_data_batting(player, team, year):
     page = requests.get(url)
     soup = BeautifulSoup(page.text, 'lxml')
     html = soup.find('table', id="batting_standard")
-    table = pd.read_html(str(html))[0]
-    
-    return table
+    try:
+        table = pd.read_html(str(html))[0]
+        return table
+    except: # In case no batter data is found
+        columns = ["PA", "OBP", "H", "2B", "3B", "HR", "BB", "HBP", "GDP", "SH", "SF"]
+        data = [[3783, .319, 839, 171, 14, 116, 325, 42, 71, 9, 26]]
+        table = pd.DataFrame(data, columns=columns)
+        return table
 
 # Convert a lineup to stats
 def player_to_stats(team, year):
