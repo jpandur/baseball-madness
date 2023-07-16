@@ -94,7 +94,7 @@ def half_inning(batters, batter_handedness, batters_dict, bop, pitcher, good_bul
             bop += 1
 
         # In case pitcher needs to be replaced after having given up a certain number of runs, hits, and/or walks, or IP.
-        if walks_hits_ip_dict[pitcher][0] < 0 or (walks_hits_ip_dict[pitcher][1] < 0 and walks_hits_ip_dict[pitcher][2] < 0):
+        if (walks_hits_ip_dict[pitcher][0] < 0 and walks_hits_ip_dict[pitcher][1] < 0) or (walks_hits_ip_dict[pitcher][1] < 0 and walks_hits_ip_dict[pitcher][2] < 0):
             temp_index = bop
             next_three_batters = [batter_handedness[temp_index], batter_handedness[(temp_index + 1) % 9], batter_handedness[(temp_index + 2) % 9]]
             if good_bullpen[0] != []: # if there are still good relievers

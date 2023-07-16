@@ -12,7 +12,7 @@ def get_lineups(team):
     url = find_url(possible_urls, "mlb.com")
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(2, 3))
+    time.sleep(random.uniform(3, 4))
 
     all_away_lineups = soup.find_all("ol", class_="starting-lineups__team--away")
     all_home_lineups = soup.find_all("ol", class_="starting-lineups__team--home")
@@ -52,6 +52,9 @@ def get_lineups(team):
     away_list.insert(1, away_pitcher_name + " (" + away_pitcher_handedness + ")")
     home_list.insert(1, home_pitcher_name + " (" + home_pitcher_handedness + ")")
 
+    print("Rosters Found!")
+    print(away_list)
+    print(home_list)
     return away_list, home_list, away_batting_handedness, home_batting_handedness
 
 # Given a team name, return a list of bullpen pitchers for that team,
@@ -61,7 +64,7 @@ def get_bullpen(team_name):
     url = find_url(possible_url, "mlb.com")
     response = requests.get(url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(2, 3))
+    time.sleep(random.uniform(3, 4))
     html = soup.find_all("table", class_="roster__table")
 
     bullpen_table = pd.read_html(str(html))[1] # get bullpen roster from list of players
@@ -131,7 +134,7 @@ def get_batter_data(lineup, team_name):
     for batter in lineup:
         stats_url, splits_url, game_log_url = stat_links(batter, "b", team_name)
         if splits_url == '' and game_log_url == '': # if no data on batter, give empty list
-            player_dictionary[batter] = [[], []]
+            player_dictionary[batter] = [[[[], []] for _ in range(20)], []]
         else:
             splits_tables = get_splits_tables(splits_url)
             game_log_table = get_game_log_tables(game_log_url, "batting")
@@ -149,7 +152,7 @@ def get_pitcher_data(pitchers, team_name):
         handedness = pitcher_entry.split("(")[1][0]
         stats_url, splits_url, game_log_url = stat_links(pitcher, "p", team_name)
         if splits_url == '' or game_log_url == '': # if no data on pitcher, give empty lists plus handedness
-            player_dictionary[pitcher_entry] = [[], [], [], handedness]
+            player_dictionary[pitcher_entry] = [[[[], []] for _ in range(20)], [], [], handedness]
         else:
             splits_tables = get_splits_tables(splits_url)
             game_log_table = get_game_log_tables(game_log_url, "pitching")

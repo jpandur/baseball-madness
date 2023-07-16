@@ -176,7 +176,7 @@ def player_to_stats(team, year):
     stats = []
     for player in team[1:]:
         stats += [extract_player_data_batting(player, team[0], year)]
-        time.sleep(1)
+        time.sleep(3)
     return stats
 
 # Determines result of a single batter.

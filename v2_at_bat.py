@@ -26,15 +26,19 @@ def at_bat(batter, batter_hands, batter_data, pitcher, pitcher_data, basepaths, 
     pitcher_splits_tables = pitcher_data[pitcher][0]
     pitcher_game_log_table = pitcher_data[pitcher][1]
 
-    if "King" in pitcher:
-        print(pitcher_splits_tables)
-
-    pitcher_bases_occupied_table = pitcher_splits_tables[13][0]
-    if pitcher_bases_occupied_table.loc[pitcher_bases_occupied_table["Split"] == "Men On"].empty or pitcher_bases_occupied_table.loc[pitcher_bases_occupied_table["Split"] == "---"].empty:
-        pitcher_bases_occupied_table = pitcher_splits_tables[14][0] 
-    pitcher_num_outs_table = pitcher_splits_tables[12][0]
-    if pitcher_num_outs_table.loc[pitcher_num_outs_table["Split"] == "0 outs"].empty:
-        pitcher_num_outs_table = pitcher_splits_tables[13][0]
+    try:
+        pitcher_bases_occupied_table = pitcher_splits_tables[13][0]
+        if pitcher_bases_occupied_table.loc[pitcher_bases_occupied_table["Split"] == "Men On"].empty or pitcher_bases_occupied_table.loc[pitcher_bases_occupied_table["Split"] == "---"].empty:
+            pitcher_bases_occupied_table = pitcher_splits_tables[14][0] 
+    except:
+        pitcher_bases_occupied_table = []
+    
+    try:
+        pitcher_num_outs_table = pitcher_splits_tables[12][0]
+        if pitcher_num_outs_table.loc[pitcher_num_outs_table["Split"] == "0 outs"].empty:
+            pitcher_num_outs_table = pitcher_splits_tables[13][0]
+    except:
+        pitcher_num_outs_table = []
 
     # Item 1 for at-bat: how does batter and pitcher do with given basepaths and outs?
     item1_safe_b, item1_out_b = situational_bases_and_outs(batter_splits_tables[13][0], basepaths, num_outs)
@@ -111,7 +115,7 @@ def item_calculation(batter_safe, batter_out, pitcher_safe, pitcher_out):
 # return the number of times safe and number of times out.
 def situational_bases_and_outs(table, basepaths, num_outs):
     # Check if table is a valid table.
-    if type(table) == pd.core.frame.DataFrame:
+    try:
         table = table.fillna(0) # Replace NaN with 0's
         desired_row = table.loc[table["Split"] == num_outs + " out, " + basepaths]
         if desired_row.empty:
@@ -120,14 +124,14 @@ def situational_bases_and_outs(table, basepaths, num_outs):
         times_out = desired_row["PA"].values[0] - times_safe
         
         return int(times_safe), int(times_out)
-    else:
+    except:
         return -1, -1
 
 # Given a table with pertient information and the basepaths, return the number
 # of times safe and the number of times out.
 def situational_bases(table, basepaths):
     # Check if table is a valid table.
-    if type(table) == pd.core.frame.DataFrame:
+    try:
         table = table.fillna(0) # Replace NaN with 0's
         desired_row = table.loc[table["Split"] == basepaths]
         if desired_row.empty:
@@ -136,14 +140,14 @@ def situational_bases(table, basepaths):
         times_out = desired_row["PA"].values[0] - times_safe
         
         return int(times_safe), int(times_out)
-    else:
+    except:
         return -1, -1
 
 # Given a table with pertient information and the number of outs, return the number of
 # times safe and the number of times out.
 def situational_outs(table, num_outs):
     # Check if table is a valid table.
-    if type(table) == pd.core.frame.DataFrame:
+    try:
         table = table.fillna(0) # Replace NaN with 0's
         split_name = ''
         for name in table["Split"].values: # Used to find the correct row.
@@ -157,72 +161,75 @@ def situational_outs(table, num_outs):
         times_out = desired_row["PA"].values[0] - times_safe
 
         return int(times_safe), int(times_out)
-    else:
+    except:
         return -1, -1
 
 # Given a game log table, the last number of games played, and classifier (b/p)
 # return the number of times safe and the number of times out.
 def game_log_case(table, num_games, classifier):
-    if type(table) != pd.core.frame.DataFrame: # If table is empty
-        return -1, -1
-    table = table.drop(["Rk", "Gcar", "Gtm", "DFS(DK)", "DFS(FD)"], axis=1) # Drop unneeded columns
-    table = table[table["Tm"] != "Tm"] # Get rid of rows that don't contain data.
-    table = table[table["Date"].notna()]
-    table = table[:-1] # Delete last row, which contains season data.
-    table = table.fillna(0)
+    try:
+        table = table.drop(["Rk", "Gcar", "Gtm", "DFS(DK)", "DFS(FD)"], axis=1) # Drop unneeded columns
+        table = table[table["Tm"] != "Tm"] # Get rid of rows that don't contain data.
+        table = table[table["Date"].notna()]
+        table = table[:-1] # Delete last row, which contains season data.
+        table = table.fillna(0)
 
-    considered_games = min(num_games, len(table.index)) # In case game log has less than NUM_GAMES
-    start_index = len(table.index) - considered_games # Where we begin taking data
-    recent_games_table = table[start_index:] # Get recent games
-    recent_games_table = recent_games_table.reset_index() # Set such that first row has index 0
-    times_safe = 0
-    plate_appearances = 0
-    for index in recent_games_table.index:
-        if classifier == "b":
-            plate_appearances += int(recent_games_table["PA"][index])
-        else:
-            plate_appearances += int(recent_games_table["BF"][index])
-        times_safe = times_safe + int(recent_games_table["H"][index]) + int(recent_games_table["BB"][index]) + int(recent_games_table["HBP"][index]) + int(recent_games_table["ROE"][index])
-    
-    return times_safe, plate_appearances - times_safe
+        considered_games = min(num_games, len(table.index)) # In case game log has less than NUM_GAMES
+        start_index = len(table.index) - considered_games # Where we begin taking data
+        recent_games_table = table[start_index:] # Get recent games
+        recent_games_table = recent_games_table.reset_index() # Set such that first row has index 0
+        times_safe = 0
+        plate_appearances = 0
+        for index in recent_games_table.index:
+            if classifier == "b":
+                plate_appearances += int(recent_games_table["PA"][index])
+            else:
+                plate_appearances += int(recent_games_table["BF"][index])
+            times_safe = times_safe + int(recent_games_table["H"][index]) + int(recent_games_table["BB"][index]) + int(recent_games_table["HBP"][index]) + int(recent_games_table["ROE"][index])
+        
+        return times_safe, plate_appearances - times_safe
+    except:
+        return -1, -1
 
 # Given a pertient table and whether or not player is home or away,
 # return the number of times safe and the number of times out.
 def home_away_case(table, location):
-    if type(table) != pd.core.frame.DataFrame:
-        return -1, -1
-    desired_row = table.loc[table["Split"] == location]
-    if desired_row.empty:
-        return -1, -1
-    times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
-    times_out = desired_row["PA"].values[0] - times_safe
+    try:
+        desired_row = table.loc[table["Split"] == location]
+        if desired_row.empty:
+            return -1, -1
+        times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
+        times_out = desired_row["PA"].values[0] - times_safe
 
-    return int(times_safe), int(times_out)
+        return int(times_safe), int(times_out)
+    except:
+        return -1, -1
 
 # Given a pertient table on season stats, return the number of times safe and out.
 def season_case(table):
-    if type(table) != pd.core.frame.DataFrame:
+    try:
+        desired_row = table.loc[table["Split"] == CURRENT_YEAR + " Totals"]
+        times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
+        times_out = desired_row["PA"].values[0] - times_safe
+        return int(times_safe), int(times_out)
+    except:
         return -1, -1
-    desired_row = table.loc[table["Split"] == CURRENT_YEAR + " Totals"]
-    times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
-    times_out = desired_row["PA"].values[0] - times_safe
-
-    return int(times_safe), int(times_out)
 
 # Given pertient table and handedness of batter and pitcher, return 
 # the number of times safe and out.
 def handedness_case(table, batter_handedness, pitcher_handedness, classifier):
-    if type(table) != pd.core.frame.DataFrame:
+    try:
+        if classifier == "b":
+            split_name = "vs " + pitcher_handedness + "HP as " + batter_handedness + "HB"
+            desired_row = table.loc[table["Split"] == split_name]
+        else:
+            split_name = "vs " + batter_handedness + "HB as " + pitcher_handedness + "HP"
+            desired_row = table.loc[table["Split"] == split_name]
+        times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
+        times_out = desired_row["PA"].values[0] - times_safe
+        return int(times_safe), int(times_out)
+    except:
         return -1, -1
-    if classifier == "b":
-        split_name = "vs " + pitcher_handedness + "HP as " + batter_handedness + "HB"
-        desired_row = table.loc[table["Split"] == split_name]
-    else:
-        split_name = "vs " + batter_handedness + "HB as " + pitcher_handedness + "HP"
-        desired_row = table.loc[table["Split"] == split_name]
-    times_safe = (desired_row["H"].values + desired_row["BB"].values + desired_row["HBP"].values + desired_row["ROE"].values)[0]
-    times_out = desired_row["PA"].values[0] - times_safe
-    return int(times_safe), int(times_out)
 
 # With the factors calculated in function at-bat, produce a "magic" percentage
 # for player success rate.
@@ -242,7 +249,45 @@ def result(b_num, batter_table, pitcher_table, batter_handedness, location):
 
 # Given batter statistics and where the game is played, determine the exact outcome.
 def safe_scenario(table, location, handedness):
-    if type(table) != pd.core.frame.DataFrame: # if no player data available, use league averages
+    try:
+        desired_row = table.loc[table["Split"] == CURRENT_YEAR + " Totals"]
+        times_safe = desired_row["H"][0] + desired_row["BB"][0] + desired_row["HBP"][0] + desired_row["ROE"][0]
+
+        # Get different rates for different outcomes from batter's season data.
+        singles_rate = (desired_row["H"][0] - desired_row["2B"][0] - desired_row["3B"][0] - desired_row["HR"][0]) / times_safe
+        doubles_rate = desired_row["2B"][0] / times_safe
+        triples_rate = desired_row["3B"][0] / times_safe
+        home_run_rate = desired_row["HR"][0] / times_safe
+        walk_rate = desired_row["BB"][0] / times_safe
+        hbp_rate = desired_row["HBP"][0] / times_safe
+        roe_rate = desired_row["ROE"][0] / times_safe
+
+        # Adjust the hits and walk rates based on park.
+        adjusted_singles = singles_rate * location[handedness + "-1B"]
+        adjusted_doubles = doubles_rate * location[handedness + "-2B"]
+        adjusted_triples = triples_rate * location[handedness + "-3B"]
+        adjusted_home_runs = home_run_rate * location[handedness + "-HR"]
+        adjusted_walks = walk_rate * location[handedness + "-BB"]
+
+        adjusted_sum = adjusted_singles + adjusted_doubles + adjusted_triples + adjusted_home_runs + adjusted_walks + hbp_rate + roe_rate
+
+        # Now, we can determine the final outcome with a bit of randomness.
+        result = random.uniform(0, 1)
+        if result <= adjusted_singles / adjusted_sum:
+            return "Single"
+        elif result <= (adjusted_singles + adjusted_doubles) / adjusted_sum:
+            return "Double"
+        elif result <= (adjusted_singles + adjusted_doubles + adjusted_triples) / adjusted_sum:
+            return "Triple"
+        elif result <= (adjusted_singles + adjusted_doubles + adjusted_triples + adjusted_home_runs) / adjusted_sum:
+            return "Home Run"
+        elif result <= (adjusted_singles + adjusted_doubles + adjusted_triples + adjusted_home_runs + adjusted_walks) / adjusted_sum:
+            return "Walk"
+        elif result <= (adjusted_singles + adjusted_doubles + adjusted_triples + adjusted_home_runs + adjusted_walks + hbp_rate) / adjusted_sum:
+            return "HBP"
+        else:
+            return "ROE"
+    except:
         url = "https://www.baseball-reference.com/leagues/majors/bat.shtml"
         data = pd.read_html(url)[0]
         this_year = data.iloc[0]
@@ -261,47 +306,22 @@ def safe_scenario(table, location, handedness):
         else:
             return "Walk"
 
-    desired_row = table.loc[table["Split"] == CURRENT_YEAR + " Totals"]
-    times_safe = desired_row["H"][0] + desired_row["BB"][0] + desired_row["HBP"][0] + desired_row["ROE"][0]
-
-    # Get different rates for different outcomes from batter's season data.
-    singles_rate = (desired_row["H"][0] - desired_row["2B"][0] - desired_row["3B"][0] - desired_row["HR"][0]) / times_safe
-    doubles_rate = desired_row["2B"][0] / times_safe
-    triples_rate = desired_row["3B"][0] / times_safe
-    home_run_rate = desired_row["HR"][0] / times_safe
-    walk_rate = desired_row["BB"][0] / times_safe
-    hbp_rate = desired_row["HBP"][0] / times_safe
-    roe_rate = desired_row["ROE"][0] / times_safe
-
-    # Adjust the hits and walk rates based on park.
-    adjusted_singles = singles_rate * location[handedness + "-1B"]
-    adjusted_doubles = doubles_rate * location[handedness + "-2B"]
-    adjusted_triples = triples_rate * location[handedness + "-3B"]
-    adjusted_home_runs = home_run_rate * location[handedness + "-HR"]
-    adjusted_walks = walk_rate * location[handedness + "-BB"]
-
-    adjusted_sum = adjusted_singles + adjusted_doubles + adjusted_triples + adjusted_home_runs + adjusted_walks + hbp_rate + roe_rate
-
-    # Now, we can determine the final outcome with a bit of randomness.
-    result = random.uniform(0, 1)
-    if result <= adjusted_singles / adjusted_sum:
-        return "Single"
-    elif result <= (adjusted_singles + adjusted_doubles) / adjusted_sum:
-        return "Double"
-    elif result <= (adjusted_singles + adjusted_doubles + adjusted_triples) / adjusted_sum:
-        return "Triple"
-    elif result <= (adjusted_singles + adjusted_doubles + adjusted_triples + adjusted_home_runs) / adjusted_sum:
-        return "Home Run"
-    elif result <= (adjusted_singles + adjusted_doubles + adjusted_triples + adjusted_home_runs + adjusted_walks) / adjusted_sum:
-        return "Walk"
-    elif result <= (adjusted_singles + adjusted_doubles + adjusted_triples + adjusted_home_runs + adjusted_walks + hbp_rate) / adjusted_sum:
-        return "HBP"
-    else:
-        return "ROE"
-
 # Given pitcher statistics and where the game is played, determine the exact outcome.
 def out_scenario(table, location, handedness):
-    if type(table) != pd.core.frame.DataFrame: # if data unavailable, use league data
+    try:
+        desired_row = table.loc[table["Split"] == CURRENT_YEAR + " Totals"]
+        times_safe = desired_row["H"][0] + desired_row["BB"][0] + desired_row["HBP"][0] + desired_row["ROE"][0]
+        times_out = desired_row["PA"][0] - times_safe
+
+        strikeout_rate = desired_row["SO"][0] / times_out
+        adjusted_strikeout_rate = strikeout_rate * location[handedness + "-SO"]
+
+        result = random.uniform(0, 1)   
+        if result <= adjusted_strikeout_rate:
+            return "Strikeout"
+        else:
+            return "Out"
+    except:
         url = "https://www.baseball-reference.com/leagues/majors/bat.shtml"
         data = pd.read_html(url)[0]
         this_year = data.iloc[0]
@@ -311,17 +331,4 @@ def out_scenario(table, location, handedness):
         result = random.uniform(0, 1)
         if result <= strikeout_rate:
             return "Strikeout"
-        return "Out"
-
-    desired_row = table.loc[table["Split"] == CURRENT_YEAR + " Totals"]
-    times_safe = desired_row["H"][0] + desired_row["BB"][0] + desired_row["HBP"][0] + desired_row["ROE"][0]
-    times_out = desired_row["PA"][0] - times_safe
-
-    strikeout_rate = desired_row["SO"][0] / times_out
-    adjusted_strikeout_rate = strikeout_rate * location[handedness + "-SO"]
-
-    result = random.uniform(0, 1)   
-    if result <= adjusted_strikeout_rate:
-        return "Strikeout"
-    else:
         return "Out"

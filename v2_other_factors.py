@@ -42,7 +42,7 @@ def find_url(possiblites, key_phrase):
 def stat_links(name, classification, team_name):
     possible_urls = web(name + team_name + " baseball reference stats height weight " + CURRENT_YEAR).pages
     stats_url = find_url(possible_urls, "baseball-reference.com/players")
-    time.sleep(random.uniform(2, 3))
+    time.sleep(random.uniform(3, 4))
     if not stats_url:
         return '', '', ''
 
@@ -76,7 +76,7 @@ def stat_links(name, classification, team_name):
 def get_last5_table(player_url):
     response = requests.get(player_url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(2, 3))
+    time.sleep(random.uniform(3, 4))
     html = soup.find_all("table", id="last5")
     if html == []:
         return []
@@ -87,7 +87,7 @@ def get_last5_table(player_url):
 def get_splits_tables(player_url):
     response = requests.get(player_url)
     soup = BeautifulSoup(response.text, 'html.parser')
-    time.sleep(random.uniform(2, 3))
+    time.sleep(random.uniform(3, 4))
 
     comments = soup.find_all(string=lambda text: isinstance(text, Comment))
     tables = []
@@ -107,7 +107,7 @@ def get_game_log_tables(player_url, identifier):
     try:
         table = pd.read_html(str(html))[0]
         table = table[table["Date"].notna()] # Drop rows with NaN in Date column
-        time.sleep(random.uniform(2, 3))
+        time.sleep(random.uniform(3, 4))
         return table
     except:
         return []
