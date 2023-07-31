@@ -2,7 +2,7 @@ import pandas as pd
 
 # Given a team code, find the full name of the team.
 def code_to_name(code):
-    name_table = pd.read_csv("~/Documents/mlb_project/v2_team_names.csv")
+    name_table = pd.read_csv("~/Documents/mlb_project/names_stadiums.csv")
     row = name_table.loc[name_table["Code"] == code]
     row = row.reset_index(drop=True)
     return row.loc[0, "Name"]

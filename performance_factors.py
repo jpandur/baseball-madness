@@ -5,10 +5,11 @@ import random
 
 YEAR = str(datetime.now().year)
 
-# Given a team name, look at how the team has done in its last ten games and
-# its current winning/losing streak. Based on that, calculate a number for
-# which every batter's OBP on that team will be multiplied by.
-def recent_team_performance_factor(team_name):
+# Given a team name, look at how the team has done in its last ten games, its
+# current winning/losing streak, and how it does at HOME or AWAY, depending on
+# the location. Based on that, calculate a number for which every batter's OBP
+# on that team will be multiplied by.
+def recent_team_performance_factor(team_name, home_away):
     standings_url = "https://www.foxsports.com/mlb/standings"
     division_standings = pd.read_html(standings_url)
     time.sleep(random.uniform(0.5, 1))
@@ -35,9 +36,9 @@ def recent_team_performance_factor(team_name):
 
             return round(streak_multiplier + last_ten_multiplier - 1, 5)
 
-# Given a team name, determine how much better or worse the pitching staff does
-# compared to the league average. Number greater than 1 indicates worse than average.
-def team_pitching_performance(team_name):
+# Given a pitcher name, determine how much better or worse he does compared to the
+# league average. Number greater than 1 indicates worse than average.
+def pitching_performance(away_starter, home_starter, away_bullpen, home_bullpen):
     # Gets the URL and table for team pitching statistics for the season.
     standard_pitching_url = "https://www.baseball-reference.com/leagues/majors/" + YEAR + "-batting-pitching.shtml"
     team_pitching_stats_table = pd.read_html(standard_pitching_url)[0][:-2]
@@ -46,10 +47,25 @@ def team_pitching_performance(team_name):
     time.sleep(random.uniform(3, 4))
 
     league_avg = team_pitching_stats_table[team_pitching_stats_table["Tm"] == "League Average"]
-    team_stats = team_pitching_stats_table[team_pitching_stats_table["Tm"].str.contains(team_name)]
     league_avg = league_avg.reset_index(drop=True)
-    team_stats = team_stats.reset_index(drop=True)
-    return round(team_stats.loc[0, "OBP"] / league_avg.loc[0, "OBP"], 5)
+    league_avg_obp = league_avg.loc[0, "OBP"]
+    for pitcher in [away_starter, home_starter] + away_bullpen + home_bullpen:
+        pitcher.obp_ratio = pitcher_evaluation(pitcher, league_avg_obp)
+    return
+
+# Helper function to calculate obp_ratio
+def pitcher_evaluation(pitcher, obp):
+    if pitcher.totals_table.empty or pitcher.totals_table_game_level.empty:
+        return 1
+    else:
+        season_row = pitcher.totals_table.loc[pitcher.totals_table["Split"] == YEAR + " Totals"]
+        season_obp = season_row.loc[0, "OBP"]
+        season_row_game_level = pitcher.totals_table_game_level.loc[pitcher.totals_table_game_level["Split"] == YEAR + " Totals"]
+        season_innings = season_row_game_level.loc[0, "IP"]
+        if (pitcher.type == "SP" and season_innings >= 40) or (pitcher.type == "RP" and season_innings >= 20):
+            return round(season_obp / obp, 5)
+        else:
+            return 1
 
 # Given a team name, find the corresponding stadium and weather. Return the factor
 # by which the pitching will be affected (i.e. multiply BAA by this number).
@@ -58,10 +74,14 @@ def get_stadium_weather(team):
     row = table.loc[table["Name"] == team]
     row = row.reset_index(drop=True)
     temperature = row.loc[0, "Temperature"]
-    if row.loc[0, "Retractable Roof"] == "Yes" or (temperature >= 72 and temperature <= 78):
+    if row.loc[0, "Retractable Roof"] == "Yes" or (temperature >= 70 and temperature <= 80):
         return 1
-    difference = min(abs(temperature - 78), abs(temperature - 72)) # establish ideal range of 72-78
-    return round(pow(1.01, difference), 5)
+    if temperature < 70:
+        difference = (70 - temperature)
+        return round(pow(0.99, difference), 5)
+    else:
+        difference = (temperature - 80)
+        return round(pow(1.01, difference), 5)
 
 # Given a team name, find the corresponding park factors, which will be returned in
 # the form of a pandas Series
@@ -85,7 +105,7 @@ def rank_bullpen(bullpen):
                 era = 4.3 # Set to league average if ERA is 0
             ip = totals_row.loc[0, "IP"]
             whip = totals_row.loc[0, "WHIP"]
-            score = 4.3 / era * ip / whip
+            score = round(4.3 / era * ip / whip, 3)
             rankings += [(pitcher.name, score)]
 
     rankings = sorted(rankings, key=lambda x: x[1], reverse=True)

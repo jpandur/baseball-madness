@@ -23,12 +23,13 @@ class Pitcher:
         self.type = type # SP or RP
         self.times_faced_batter_dict = {} # each time a batter faces pitcher, add to it
         self.available = True
+        self.obp_ratio = 1 # ratio between pitcher's OBP and league average OBP (1 is average)
 
         if not self.totals_table_game_level.empty:
             last_7_days_row = self.totals_table_game_level.loc[self.totals_table_game_level["Split"] == "Last 7 days"]
             last_7_days_row = last_7_days_row.reset_index(drop=True)
-            if last_7_days_row.empty or int(last_7_days_row.loc[0, "G"]) < 4:
-                pass # determine availability of reliever
+            if last_7_days_row.empty or (int(last_7_days_row.loc[0, "G"]) < 4 and int(last_7_days_row.loc[0, "IP"]) <= 4):
+                self.available = True # determine availability of reliever
             else:
                 self.available = False
 

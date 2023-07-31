@@ -59,6 +59,10 @@ def get_lineups(team):
 
     print(away_list)
     print(home_list)
+    print(away_batting_handedness)
+    print(home_batting_handedness)
+    print(away_pitcher_name)
+    print(home_pitcher_name)
     return away_list, home_list, away_batting_handedness, home_batting_handedness, away_pitcher, home_pitcher
 
 # Given a team name, return a list of bullpen pitchers for that team, in the form
