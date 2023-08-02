@@ -196,9 +196,7 @@ def pick_next_reliever(bullpen, bases, outs, batter_handedness):
                 try:
                     platoon_score = float(platoon_row.loc[0, "PA"]) / float(platoon_row.loc[0, "OBP"])
                 except:
-                    platoon_score = float(platoon_row.loc[0, "PA"]) / .248
-                    print(pitcher.name, platoon_score)
-                    print(platoon_row)
+                    platoon_score = float(platoon_row.loc[0, "PA"]) / .2
             else:
                 print(pitcher.name, "does not have a platoon row to analyze")
 
@@ -209,9 +207,7 @@ def pick_next_reliever(bullpen, bases, outs, batter_handedness):
                 try:
                     basepaths_outs_score = float(basepaths_outs_row.loc[0, "PA"]) / float(basepaths_outs_row.loc[0, "OBP"])
                 except:
-                    basepaths_outs_score = float(basepaths_outs_row.loc[0, "PA"]) / .248
-                    print(pitcher.name, basepaths_outs_score)
-                    print(basepaths_outs_row)
+                    basepaths_outs_score = float(basepaths_outs_row.loc[0, "PA"]) / .2
             else:
                 print(pitcher.name, "does not have a row for", bases, "and", outs, "outs")       
         

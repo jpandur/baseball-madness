@@ -67,7 +67,7 @@ def get_lineups(team):
 
 # Given a team name, return a list of bullpen pitchers for that team, in the form
 # PITCHER (HANDEDNESS), along with their handedness.
-def get_bullpen(team_name):
+def get_bullpen(team_name, starter):
     possible_url = web("mlb " + team_name + " depth chart").pages
     url = find_url(possible_url, "mlb.com")
     response = requests.get(url)
@@ -91,16 +91,99 @@ def get_bullpen(team_name):
                 name = name + item + " "
             else:
                 handedness += [bullpen_table.iloc[index]["B/T"][-1]]
-                relief_pitchers += [name[:-1]]
+                this_pitcher = name[:-1]
+                if this_pitcher not in relief_pitchers and this_pitcher != starter:
+                    relief_pitchers += [this_pitcher]
                 break
     print(relief_pitchers)
     return relief_pitchers, handedness
+
+# Determine whether a pitcher is available today based on how much he has pitched recently.
+def check_pitcher_game_log(pitcher):
+    possible_urls = web(pitcher.name + " game logs").pages
+    time.sleep(random.uniform(1.9, 2.9))
+    game_log_url = find_url(possible_urls, "espn")
+    print(pitcher.name, game_log_url)
+    if not game_log_url: # if pitcher does not have game log
+        return True
+    tables = pd.read_html(game_log_url)
+    print("Length of game log tables for", pitcher.name, len(tables))
+
+    try:
+        this_month = tables[0]
+        this_month = clean_game_log_tables(this_month)
+        last_month = tables[1]
+        last_month = clean_game_log_tables(last_month)
+
+        games_this_month = min(5, len(this_month)) # in case there are less than five games for the month
+        games_last_month = min(5 - games_this_month, len(last_month)) # get remaining necessary games from last month, if needed
+        today = datetime.today()
+
+        days_pitched_outs_recorded = []
+
+        index = 0
+        while index < games_this_month: # looking at recent games played this month
+            this_date_str = this_month.loc[index, "Date"].split()[1] + "/" + YEAR
+            this_date = datetime.strptime(this_date_str, '%m/%d/%Y')
+            days_ago = abs((today - this_date).days)
+            outs_recorded_str = str(this_month.loc[index, "IP"]).split(".")
+            outs_recorded = 3 * int(outs_recorded_str[0]) + int(outs_recorded_str[1])
+            days_pitched_outs_recorded += [(days_ago, outs_recorded)]
+            index += 1
+
+        index = 0
+        while index < games_last_month: # looking at recent games played last month
+            this_date_str = last_month.loc[index, "Date"].split()[1] + "/" + YEAR
+            this_date = datetime.strptime(this_date_str, '%m/%d/%Y')
+            days_ago = abs((today - this_date).days)
+            outs_recorded_str = str(last_month.loc[index, "IP"]).split(".")
+            outs_recorded = 3 * int(outs_recorded_str[0]) + int(outs_recorded_str[1])
+            days_pitched_outs_recorded += [(days_ago, outs_recorded)]
+            index += 1
+
+        last_three_days_outs = 0 # tracks number of outs recorded in last three days
+        last_week_times_pitched = 0 # tracks number of appearances in last week
+        for element in days_pitched_outs_recorded:
+            if element[0] <= 3:
+                last_three_days_outs += element[1]
+                last_week_times_pitched += 1
+            elif element[0] <= 7:
+                last_week_times_pitched += 1
+            else:
+                break
+
+        if (days_pitched_outs_recorded[0][0] == 1 or days_pitched_outs_recorded[0][0] == 2) and days_pitched_outs_recorded[0][1] > 3:
+            # case where reliever pitched more than one inning yesterday or day before
+            return False
+        elif days_pitched_outs_recorded[0][0] == 1 and days_pitched_outs_recorded[1][0] == 2:
+            # case where reliever pitched two days in a row
+            return False
+        elif last_three_days_outs >= 9 or last_week_times_pitched >= 4:
+            # case where reliever has thrown 3+ innings in last three days or has pitched four times in last week
+            return False
+        else:
+            return True
+    except:
+        print(pitcher.name, "does not have any game logs!")
+        return True    
+    
+# Helper function for check_pitcher_game_log
+def clean_game_log_tables(table):
+    index_to_remove = []
+    table = table[:-1] # get rid of last row, which contains totals
+    for i in table.index:
+        if "acquired" in table.loc[i, "Date"]:
+            index_to_remove += [i]
+    index_to_remove.reverse()
+    table = table.drop(index=index_to_remove)
+    table = table.reset_index(drop=True)
+    return table
 
 # Given a player name, a batter/pitcher classification (b/p), and team name, find
 # relevant link to player's splits page.
 def get_splits_link(name, classification, team_name):
     possible_urls = web(name + team_name + " baseball reference stats height weight " + YEAR).pages
-    time.sleep(random.uniform(2, 3))
+    time.sleep(random.uniform(1.9, 2.9))
     stats_url = find_url(possible_urls, "baseball-reference.com/players")
     if not stats_url:
         print(name)

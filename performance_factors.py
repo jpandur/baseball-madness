@@ -34,7 +34,7 @@ def recent_team_performance_factor(team_name, home_away):
             else:
                 last_ten_multiplier = round(pow(0.99, 5 - last_ten_wins), 5)
 
-            return round(streak_multiplier + last_ten_multiplier - 1, 5)
+            return round(streak_multiplier * last_ten_multiplier, 5)
 
 # Given a pitcher name, determine how much better or worse he does compared to the
 # league average. Number greater than 1 indicates worse than average.

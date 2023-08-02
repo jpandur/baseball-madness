@@ -17,8 +17,8 @@ home_pitcher_handedness = home_pitcher.split("(")[1][0]
 away_pitcher = away_pitcher.split("(")[0][:-1]
 home_pitcher = home_pitcher.split("(")[0][:-1]
 
-away_bullpen, away_bullpen_handedness = get_bullpen(away_team_name)
-home_bullpen, home_bullpen_handedness = get_bullpen(home_team_name)
+away_bullpen, away_bullpen_handedness = get_bullpen(away_team_name, away_pitcher)
+home_bullpen, home_bullpen_handedness = get_bullpen(home_team_name, home_pitcher)
 
 # Get tables for batters and use them to create Batter class objects.
 for i in range(len(away_list)):
@@ -48,9 +48,12 @@ for i in range(len(home_bullpen)):
     tables = get_pitching_tables(get_splits_tables(url))
     home_bullpen[i] = Pitcher(home_bullpen[i], tables, home_bullpen_handedness[i], "RP")
 
-# Rank bullpen members based on effectiveness.
+# Rank bullpen members based on effectiveness and determine availability.
 away_bullpen = rank_bullpen(away_bullpen)
 home_bullpen = rank_bullpen(home_bullpen)
+for pitcher in away_bullpen + home_bullpen:
+    pitcher.available = check_pitcher_game_log(pitcher)
+    print(pitcher.name, pitcher.available)
 
 # Determine values of different factors that may affect play and place in lists for away team
 # and home team.

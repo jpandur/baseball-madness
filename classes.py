@@ -25,14 +25,6 @@ class Pitcher:
         self.available = True
         self.obp_ratio = 1 # ratio between pitcher's OBP and league average OBP (1 is average)
 
-        if not self.totals_table_game_level.empty:
-            last_7_days_row = self.totals_table_game_level.loc[self.totals_table_game_level["Split"] == "Last 7 days"]
-            last_7_days_row = last_7_days_row.reset_index(drop=True)
-            if last_7_days_row.empty or (int(last_7_days_row.loc[0, "G"]) < 4 and int(last_7_days_row.loc[0, "IP"]) <= 4):
-                self.available = True # determine availability of reliever
-            else:
-                self.available = False
-
     # Given a pitcher's recent outings (last 28 games) and season data, determine the
     # maximum number of outs recorded (IP * 3), walks plus hits allowed, and runs.
     # Recent outings are weighed more heavily.
