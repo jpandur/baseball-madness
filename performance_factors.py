@@ -34,7 +34,16 @@ def recent_team_performance_factor(team_name, home_away):
             else:
                 last_ten_multiplier = round(pow(0.99, 5 - last_ten_wins), 5)
 
-            return round(streak_multiplier * last_ten_multiplier, 5)
+            # Accounts for home advantage with respect to overall performance
+            home_away_advantage = 1
+            if home_away == "HOME":
+                home_record = team_row.loc[0, "HOME"].split("-")
+                win_percentage = int(home_record[0]) / (int(home_record[0]) + int(home_record[1]))
+                overall_record = team_row.loc[0, "W-L"].split("-")
+                overall_win_percentage = int(overall_record[0]) / (int(overall_record[0]) + int(overall_record[1]))
+                home_away_advantage = round(win_percentage / overall_win_percentage, 5)
+            
+            return round(streak_multiplier * last_ten_multiplier * home_away_advantage, 5)
 
 # Given a pitcher name, determine how much better or worse he does compared to the
 # league average. Number greater than 1 indicates worse than average.

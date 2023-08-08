@@ -145,9 +145,7 @@ def check_pitcher_game_log(pitcher):
 
         # Adjust pitcher OBP ratio based on number of days rest.
         days_rest = days_pitched_outs_recorded[0][0] - 1
-        print(pitcher.name, days_rest, "days rest")
         days_rest_table = pitcher.days_rest_table
-        print(days_rest_table)
         print(pitcher.name, pitcher.obp_ratio, "Before Adjustment")
         if not days_rest_table.empty:
             if days_rest == 1:
@@ -157,6 +155,7 @@ def check_pitcher_game_log(pitcher):
             else:
                 days_rest_row = days_rest_table.loc[days_rest_table["Split"] == str(days_rest) + " Days,GR"]
             
+            print(days_rest_row)
             if not days_rest_row.empty:
                 days_rest_row = days_rest_row.reset_index(drop=True)
                 games = days_rest_row.loc[0, "G"]
