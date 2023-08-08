@@ -19,6 +19,7 @@ class Pitcher:
         self.home_away_game_level = dataframes_list[4].fillna(0)
         self.bases_outs_table = dataframes_list[5].fillna(0)
         self.times_facing_oppo_table = dataframes_list[6].fillna(0)
+        self.days_rest_table = dataframes_list[7].fillna(0)
         self.handedness = handedness
         self.type = type # SP or RP
         self.times_faced_batter_dict = {} # each time a batter faces pitcher, add to it

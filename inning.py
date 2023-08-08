@@ -113,7 +113,7 @@ def half_inning(score, half_inning_number, batters, bop, pitcher, pitcher_outs_h
             for batter in batters: # reset number of times batter has faced pitcher
                 batter.times_faced_pitcher = 0
             if len(bullpen) == 0: # bring in default reliever if bullpen is empty
-                pitcher = Pitcher("Average Joe", [pd.DataFrame() for _ in range(7)], "R", "RP")
+                pitcher = Pitcher("Average Joe", [pd.DataFrame() for _ in range(8)], "R", "RP")
             elif num_outs == 3 or (num_outs == 0 and basepaths == "---") or (half_inning_number > 18 and num_outs == 0 and basepaths == "-2-"):
                 pitcher = ''
                 index = 0

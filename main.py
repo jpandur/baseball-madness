@@ -51,9 +51,6 @@ for i in range(len(home_bullpen)):
 # Rank bullpen members based on effectiveness and determine availability.
 away_bullpen = rank_bullpen(away_bullpen)
 home_bullpen = rank_bullpen(home_bullpen)
-for pitcher in away_bullpen + home_bullpen:
-    pitcher.available = check_pitcher_game_log(pitcher)
-    print(pitcher.name, pitcher.available)
 
 # Determine values of different factors that may affect play and place in lists for away team
 # and home team.
@@ -62,6 +59,10 @@ park_dimensions_factor = get_stadium_factor(home_team_name)
 away_recent_performance = recent_team_performance_factor(away_team_name, "AWAY")
 home_recent_performance = recent_team_performance_factor(home_team_name, "HOME")
 pitching_performance(away_pitcher, home_pitcher, away_bullpen, home_bullpen)
+
+for pitcher in away_bullpen + home_bullpen:
+    pitcher.available = check_pitcher_game_log(pitcher)
+    print(pitcher.name, pitcher.available)
 
 away_factors_list = [park_dimensions_factor, park_weather_factor, away_recent_performance]
 home_factors_list = [park_dimensions_factor, park_weather_factor, home_recent_performance]

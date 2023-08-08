@@ -1,31 +1,31 @@
 Name,Code,Stadium,Retractable Roof,Temperature
-Angels,LAA,Angel Stadium,No,83
+Angels,LAA,Angel Stadium,No,85
 Astros,HOU,Minute Maid Park,Yes,108
-Athletics,OAK,Oakland Coliseum,No,74
-Blue Jays,TOR,Rogers Centre,Yes,72
+Athletics,OAK,Oakland Coliseum,No,82
+Blue Jays,TOR,Rogers Centre,Yes,78
 Braves,ATL,Truist Park,No,90
-Brewers,MIL,American Family Field,Yes,75
-Cardinals,STL,Busch Stadium,No,75
-Cubs,CHC,Wrigley Field,No,74
+Brewers,MIL,American Family Field,Yes,71
+Cardinals,STL,Busch Stadium,No,85
+Cubs,CHC,Wrigley Field,No,69
 Diamondbacks,AZ,Chase Field,Yes,109
 Dodgers,LAD,Dodger Stadium,No,72
-Giants,SF,Oracle Park,No,59
-Guardians,CLE,Progressive Field,No,90
+Giants,SF,Oracle Park,No,60
+Guardians,CLE,Progressive Field,No,86
 Mariners,SEA,T-Mobile Park,Yes,70
 Marlins,MIA,LoanDepot Park,Yes,86
 Mets,NYM,Citi Field,No,79
 Nationals,WSH,Nationals Park,No,83
-Orioles,BAL,Oriole Park,No,80
-Padres,SD,Petco Park,No,75
-Phillies,PHI,Citizens Bank Park,No,85
+Orioles,BAL,Oriole Park,No,89
+Padres,SD,Petco Park,No,69
+Phillies,PHI,Citizens Bank Park,No,87
 Pirates,PIT,PNC Park,No,78
-Rangers,TEX,Globe Life Field,Yes,100
+Rangers,TEX,Globe Life Field,Yes,105
 Rays,TB,Tropicana Field,Yes,87
-Red Sox,BOS,Fenway Park,No,79
-Reds,CIN,Great American Ball Park,No,84
+Red Sox,BOS,Fenway Park,No,89
+Reds,CIN,Great American Ball Park,No,87
 Rockies,COL,Coors Field,No,83
-Royals,KC,Kauffman Stadium,No,88
-Tigers,DET,Comerica Park,No,82
-Twins,MIN,Target Field,No,83
+Royals,KC,Kauffman Stadium,No,92
+Tigers,DET,Comerica Park,No,79
+Twins,MIN,Target Field,No,82
 White Sox,CWS,Guaranteed Rate Field,No,79
-Yankees,NYY,Yankee Stadium,No,75
+Yankees,NYY,Yankee Stadium,No,86

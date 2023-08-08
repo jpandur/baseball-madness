@@ -74,13 +74,13 @@ def get_stadium_weather(team):
     row = table.loc[table["Name"] == team]
     row = row.reset_index(drop=True)
     temperature = row.loc[0, "Temperature"]
-    if row.loc[0, "Retractable Roof"] == "Yes" or (temperature >= 70 and temperature <= 80):
+    if row.loc[0, "Retractable Roof"] == "Yes" or (temperature >= 72 and temperature <= 78):
         return 1
-    if temperature < 70:
-        difference = (70 - temperature)
+    if temperature < 72:
+        difference = 72 - temperature
         return round(pow(0.99, difference), 5)
     else:
-        difference = (temperature - 80)
+        difference = temperature - 78
         return round(pow(1.01, difference), 5)
 
 # Given a team name, find the corresponding park factors, which will be returned in

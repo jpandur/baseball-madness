@@ -128,7 +128,8 @@ def check_pitcher_game_log(pitcher):
             days_ago = abs((today - this_date).days)
             outs_recorded_str = str(this_month.loc[index, "IP"]).split(".")
             outs_recorded = 3 * int(outs_recorded_str[0]) + int(outs_recorded_str[1])
-            days_pitched_outs_recorded += [(days_ago, outs_recorded)]
+            pitches_thrown = int(this_month.loc[index, "P"])
+            days_pitched_outs_recorded += [(days_ago, outs_recorded, pitches_thrown)]
             index += 1
 
         index = 0
@@ -138,16 +139,51 @@ def check_pitcher_game_log(pitcher):
             days_ago = abs((today - this_date).days)
             outs_recorded_str = str(last_month.loc[index, "IP"]).split(".")
             outs_recorded = 3 * int(outs_recorded_str[0]) + int(outs_recorded_str[1])
-            days_pitched_outs_recorded += [(days_ago, outs_recorded)]
+            pitches_thrown = int(last_month.loc[index, "P"])
+            days_pitched_outs_recorded += [(days_ago, outs_recorded, pitches_thrown)]
             index += 1
 
+        # Adjust pitcher OBP ratio based on number of days rest.
+        days_rest = days_pitched_outs_recorded[0][0] - 1
+        print(pitcher.name, days_rest, "days rest")
+        days_rest_table = pitcher.days_rest_table
+        print(days_rest_table)
+        print(pitcher.name, pitcher.obp_ratio, "Before Adjustment")
+        if not days_rest_table.empty:
+            if days_rest == 1:
+                days_rest_row = days_rest_table.loc[days_rest_table["Split"] == "1 Day,GR"]
+            elif days_rest >= 6:
+                days_rest_row = days_rest_table.loc[days_rest_table["Split"] == "6+ Days,GR"]
+            else:
+                days_rest_row = days_rest_table.loc[days_rest_table["Split"] == str(days_rest) + " Days,GR"]
+            
+            if not days_rest_row.empty:
+                days_rest_row = days_rest_row.reset_index(drop=True)
+                games = days_rest_row.loc[0, "G"]
+                print(games, "games played on this much rest")
+                adjustment_factor = int(days_rest_row.loc[0, "tOPS+"]) / 100
+                if adjustment_factor < 0: # in case sOPS+ is negative
+                    adjustment_factor = 0.25
+                if adjustment_factor > 1: # max adjustment will be 25%
+                    if games < 10:
+                        adjustment_factor = min(1.25, adjustment_factor)
+                elif adjustment_factor < 1:
+                    if games < 10:
+                        adjustment_factor = max(0.75, adjustment_factor)
+                pitcher.obp_ratio = round(pitcher.obp_ratio * adjustment_factor, 5)
+        print(pitcher.name, pitcher.obp_ratio, "After Adjustment")
+
         last_three_days_outs = 0 # tracks number of outs recorded in last three days
+        last_three_days_pitches = 0 # tracks number of pitches in last three days
+        last_week_outs = 0 # tracks number of outs recorded in last week
         last_week_times_pitched = 0 # tracks number of appearances in last week
         for element in days_pitched_outs_recorded:
             if element[0] <= 3:
                 last_three_days_outs += element[1]
+                last_three_days_pitches += element[2]
                 last_week_times_pitched += 1
             elif element[0] <= 7:
+                last_week_outs += element[1]
                 last_week_times_pitched += 1
             else:
                 break
@@ -160,6 +196,15 @@ def check_pitcher_game_log(pitcher):
             return False
         elif last_three_days_outs >= 9 or last_week_times_pitched >= 4:
             # case where reliever has thrown 3+ innings in last three days or has pitched four times in last week
+            return False
+        elif last_week_outs >= 12:
+            # case where reliever has thrown 4+ innings in last week
+            return False
+        elif days_pitched_outs_recorded[0][0] == 1 and days_pitched_outs_recorded[0][2] >= 25:
+            # case where reliever threw more than 25 pitches yesterday
+            return False
+        elif last_three_days_pitches >= 50:
+            # case where reliever threw more than 50 pitches last three days
             return False
         else:
             return True
@@ -278,6 +323,7 @@ def get_pitching_tables(all_tables):
     home_away_table_game_level = pd.DataFrame()
     bases_outs_table = pd.DataFrame()
     times_facing_oppo_table = pd.DataFrame()
+    days_rest_table = pd.DataFrame()
     for table in all_tables:
         actual_table = table[0] # Dataframes are placed in lists of length one.
         # Create filters for potential tables.
@@ -290,6 +336,13 @@ def get_pitching_tables(all_tables):
         possible_bases_occupied_men_on = actual_table.loc[actual_table["Split"] == "Men On"]
         possible_times_sp = actual_table.loc[actual_table["Split"] == "1st PA in G, as SP"]
         possible_times_rp = actual_table.loc[actual_table["Split"] == "1st PA in G, as RP"]
+        possible_days_rest_table = actual_table.loc[actual_table["Split"] == "2 Days,GR"]
+        temp_num = 3
+        while temp_num < 6:
+            possible_days_rest_table = actual_table.loc[actual_table["Split"] == str(temp_num) + " Days,GR"]
+            temp_num += 1
+            if not possible_days_rest_table.empty:
+                break
         # Check to see whether those tables are what is needed.
         if not possible_totals.empty:
             totals_table = actual_table
@@ -303,6 +356,9 @@ def get_pitching_tables(all_tables):
             bases_outs_table = actual_table
         elif not possible_times_sp.empty or not possible_times_rp.empty:
             times_facing_oppo_table = actual_table
+        elif not possible_days_rest_table.empty:
+            days_rest_table = actual_table
 
     return [totals_table, totals_table_game_level, platoon_table, home_away_table,
-            home_away_table_game_level, bases_outs_table, times_facing_oppo_table]
+            home_away_table_game_level, bases_outs_table, times_facing_oppo_table,
+            days_rest_table]
